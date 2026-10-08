@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal de Gestão — Grupo Setta</title>
+<script>
+  /* GitHub Pages: qualquer endereço inexistente volta para o Portal (as telas usam rotas com #, ex.: #/inicio).
+     Funciona na raiz do domínio ou em /nome-do-repositorio/. */
+  (function () {
+    var partes = location.pathname.split('/').filter(Boolean);
+    var base = location.hostname.slice(-10) === '.github.io' && partes.length ? '/' + partes[0] + '/' : '/';
+    location.replace(base + (location.hash || '#/inicio'));
+  })();
+</script>
+</head>
+<body style="font-family:Arial,sans-serif;color:#2F2C83;padding:24px">
+  Redirecionando para o <a href="./">Portal de Gestão</a>…
+</body>
+</html>

@@ -1,0 +1,8 @@
+# arquivos anexados, cópias de segurança e logs — entregues somente pela API, após login e verificação de permissão
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

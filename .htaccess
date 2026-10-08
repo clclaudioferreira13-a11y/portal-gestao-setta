@@ -1,0 +1,58 @@
+# Portal de Gestão — Grupo Setta · Apache (Localweb)
+Options -Indexes
+DirectoryIndex index.html
+
+# Arquivos que nunca podem ser baixados pelo navegador (credenciais, estrutura, documentação interna)
+<FilesMatch "^(\.env.*|\.gitignore|config\.php|db\.sql|README\.md|README-LOCALWEB\.md|\.user\.ini|\.htaccess)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # pastas internas: código PHP auxiliar, dados (anexos/backups/logs) e ferramentas de linha de comando — acesso direto bloqueado
+  RewriteRule ^(inc|dados|ferramentas)(/|$) - [F,L]
+  # qualquer arquivo iniciado por ponto (.env, .git…) — bloqueado (exceto .well-known, usado na emissão do certificado SSL)
+  RewriteCond %{REQUEST_URI} !/\.well-known/
+  RewriteRule (^|/)\. - [F,L]
+
+  # API REST por módulo: /api/{modulo}/{entidade}[/{id}] → api.php
+  # (casa só "api" e "api/…" — nunca o próprio api.php)
+  RewriteRule ^api(?:/(.*))?$ api.php?rota=$1 [QSA,L]
+
+  # HTTPS obrigatório: remova o "#" das 2 linhas abaixo DEPOIS que o certificado SSL estiver ativo no painel
+  # RewriteCond %{HTTPS} !=on
+  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html application/json text/css application/javascript
+</IfModule>
+
+# Limites do PHP quando executado como módulo do Apache (em PHP-FPM/CGI valem os do .user.ini)
+<IfModule mod_php.c>
+  php_value post_max_size 64M
+  php_value upload_max_filesize 64M
+  php_value memory_limit 512M
+  php_value max_execution_time 300
+</IfModule>
+<IfModule mod_php7.c>
+  php_value post_max_size 64M
+  php_value upload_max_filesize 64M
+  php_value memory_limit 512M
+  php_value max_execution_time 300
+</IfModule>

@@ -1,0 +1,81 @@
+# Portal de Gestão — Grupo Setta · deploy automático da INTERFACE no GitHub Pages
+# A cada alteração na branch main: verifica segredos → monta o site estático → publica no Pages.
+# A API (PHP + MySQL) NÃO roda no GitHub Pages: ela fica na Localweb. Informe a URL dela na variável do repositório
+#   Settings → Secrets and variables → Actions → aba "Variables" → SETTA_API_URL  (ex.: https://seudominio.com.br/api.php)
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar credenciais (nada sensível pode ser publicado)
+        run: |
+          set -e
+          if git ls-files | grep -E '(^|/)\.env$'; then echo "::error::Arquivo .env versionado — remova do repositório."; exit 1; fi
+          # senha preenchida em algum arquivo versionado (o modelo .env.example usa apenas texto de exemplo)
+          if git ls-files -z | xargs -0 grep -IlE "^[[:space:]]*DB_PASSWORD=['\"]?[^'\" ]" -- | grep -v '^\.env\.example$'; then
+            echo "::error::DB_PASSWORD preenchida em arquivo versionado."; exit 1; fi
+          echo "Nenhuma credencial encontrada."
+
+      - name: Montar o site estático (somente a interface)
+        env:
+          SETTA_API_URL: ${{ vars.SETTA_API_URL }}
+        run: |
+          set -e
+          mkdir -p _site
+          cp index.html 404.html _site/
+          if [ -n "$SETTA_API_URL" ]; then
+            URL_JSON=$(printf '%s' "$SETTA_API_URL" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')
+            printf '/* gerado pelo deploy */\nwindow.SETTA_CONFIG = { apiUrl: %s };\n' "$URL_JSON" > _site/config.js
+            echo "API configurada: $SETTA_API_URL"
+          else
+            cp config.js _site/config.js
+            echo "::warning::Variável SETTA_API_URL não definida — o Portal abrirá avisando que a API não foi configurada."
+          fi
+          touch _site/.nojekyll
+          ls -la _site
+
+      - name: Validar o build
+        run: |
+          set -e
+          test -s _site/index.html
+          grep -q '<script src="config.js"></script>' _site/index.html
+          node -e "global.window={}; require('vm').runInNewContext(require('fs').readFileSync('_site/config.js','utf8'), {window}); if(typeof window.SETTA_CONFIG!=='object') process.exit(1); console.log('config.js OK:', JSON.stringify(window.SETTA_CONFIG))"
+          # nenhum caminho absoluto de máquina local
+          if grep -nE 'https?://(localhost|127\.0\.0\.1)' _site/index.html _site/config.js; then echo "::error::referência a localhost"; exit 1; fi
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Enviar artefato
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

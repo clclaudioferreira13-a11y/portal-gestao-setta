@@ -1,0 +1,16 @@
+# credenciais e configuração local — NUNCA versionar
+.env
+.env.*
+!.env.example
+
+# dados do servidor (anexos, cópias de segurança, logs)
+dados/arquivos/*
+dados/backups/*
+dados/logs/*
+!dados/**/.mantenha
+!dados/.htaccess
+
+# arquivos de sistema/editor
+.DS_Store
+Thumbs.db
+*.swp
