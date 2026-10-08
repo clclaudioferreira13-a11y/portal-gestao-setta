@@ -937,7 +937,7 @@ async function apiReq(acao,{metodo='GET',corpo=null,params={},timeout=30000}={})
       :resp.status===404?'API não encontrada no servidor (api.php ausente ou fora da pasta do portal).'
       :resp.status===413?'Envio maior que o limite do servidor (post_max_size).'
       :resp.status>=500?`Erro ${resp.status} no servidor (verifique o PHP e o log em dados/logs).`:'Resposta inválida do servidor (não é JSON).';
-    throw new ErroPersistencia(m+' A operação NÃO foi gravada.',{http:resp.status,codigo:'resposta_invalida'}); }
+    throw new ErroPersistencia(m+(semApi?'':' A operação NÃO foi gravada.'),{http:resp.status,codigo:semApi?'api_nao_configurada':'resposta_invalida'}); }
   if(!resp.ok||j.ok!==true) throw new ErroPersistencia(j.erro||`Erro HTTP ${resp.status}.`,{http:j.http||resp.status,codigo:j.codigo||'',extra:j});
   return j; }
 
