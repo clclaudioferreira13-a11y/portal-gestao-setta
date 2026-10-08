@@ -98,14 +98,33 @@ function acao_estado(): array {
 }
 
 /* ======================= INSTALAÇÃO INICIAL (uma única vez) ======================= */
+/* chave de instalação: aceita o valor colado com espaços ou aspas; recusa chave ausente/curta/de exemplo */
+function chave_instalacao_valida(): void {
+    $c = (string)cfg('chave_instalacao');
+    if (strlen($c) < 12 || stripos($c, 'troque') === 0 || stripos($c, 'TROQUE_') === 0)
+        falhar(503, 'A chave de instalação do servidor não foi definida ou ainda é o texto de exemplo. Edite o .env do servidor (' . env_origem() . ') e defina SETTA_CHAVE_INSTALACAO com um texto seu de 12 caracteres ou mais.');
+}
+function normalizar_chave(string $v): string {
+    $v = trim($v);
+    if (strlen($v) >= 2 && ($v[0] === "'" || $v[0] === '"') && substr($v, -1) === $v[0]) $v = trim(substr($v, 1, -1));
+    return $v;
+}
+function chave_instalacao_confere(string $digitada): bool { return hash_equals((string)cfg('chave_instalacao'), normalizar_chave($digitada)); }
+/* dica sem revelar a chave: tamanho do valor digitado x configurado e qual .env o servidor leu */
+function dica_chave(string $digitada): string {
+    $d = normalizar_chave($digitada); $c = (string)cfg('chave_instalacao');
+    $msg = 'Chave de instalação incorreta.';
+    if (strlen($d) !== strlen($c)) $msg .= ' O valor digitado tem ' . strlen($d) . ' caractere(s); a chave configurada no servidor tem ' . strlen($c) . '.';
+    else $msg .= ' O tamanho confere, mas o conteúdo é diferente (confira letras maiúsculas/minúsculas, - e _).';
+    return $msg . ' A chave é lida de: ' . env_origem() . ' (linha SETTA_CHAVE_INSTALACAO — não é a senha do banco).';
+}
 function acao_instalar(array $req): array {
     if (!configurado()) falhar(503, 'Configuração pendente: as variáveis DB_* não foram encontradas (.env).');
     db();
-    $chaveCfg = (string)cfg('chave_instalacao');
-    if (strlen($chaveCfg) < 12 || strpos($chaveCfg, 'TROQUE_') === 0) falhar(503, 'Defina SETTA_CHAVE_INSTALACAO (12 caracteres ou mais) no .env do servidor.');
-    if (!hash_equals($chaveCfg, (string)($req['chave'] ?? ''))) {
+    chave_instalacao_valida();
+    if (!chave_instalacao_confere((string)($req['chave'] ?? ''))) {
         if (tabelas_existem()) { limitar_tentativas('__instalacao__'); registrar_tentativa('__instalacao__', false); }
-        falhar(403, 'Chave de instalação incorreta.'); }
+        falhar(403, dica_chave((string)($req['chave'] ?? ''))); }
     // banco vazio: cria tabelas e visões (idempotente; nunca apaga nada)
     $esquema = null;
     if (!tabelas_existem() || (int)(meta('schema_versao') ?? 0) < ESQUEMA_VERSAO) $esquema = aplicar_esquema();
@@ -268,8 +287,8 @@ function acao_teste_conexao(array $req): array {
     // autorização: Administrador logado OU a chave de instalação (usada antes de existir qualquer usuário)
     $u = null; try { $u = usuario_atual(false); } catch (Throwable $e) { $u = null; }
     if (!e_admin($u)) {
-        $chave = (string)cfg('chave_instalacao');
-        if (strlen($chave) < 12 || !hash_equals($chave, (string)($req['chave'] ?? ''))) falhar(403, 'Somente o Administrador (ou quem tem a chave de instalação) pode testar a conexão.');
+        chave_instalacao_valida();
+        if (!chave_instalacao_confere((string)($req['chave'] ?? ''))) falhar(403, 'Para testar a conexão antes da instalação, informe a chave de instalação. ' . dica_chave((string)($req['chave'] ?? '')));
     }
     $d = cfg('db'); $porta = (int)($d['porta'] ?: 3306);
     $base = ['banco' => (string)$d['nome'], 'servidor' => (string)$d['host'], 'porta' => $porta, 'configuracao' => env_origem()];
@@ -501,7 +520,8 @@ function acao_diagnostico(): array {
     foreach (['pdo_mysql', 'json', 'openssl', 'zlib'] as $ext) $c['ext_' . $ext] = $ver(extension_loaded($ext), $ext);
     $c['ext_mbstring_ou_iconv'] = $ver(extension_loaded('mbstring') || extension_loaded('iconv'), 'mbstring/iconv');
     $c['configurado'] = $ver(configurado(), 'credenciais do banco: ' . env_origem());
-    $c['chave_instalacao'] = $ver(strlen((string)cfg('chave_instalacao')) >= 12, 'SETTA_CHAVE_INSTALACAO definida');
+    $kc = (string)cfg('chave_instalacao');
+    $c['chave_instalacao'] = $ver(strlen($kc) >= 12 && stripos($kc, 'troque') !== 0, 'SETTA_CHAVE_INSTALACAO ' . (strlen($kc) >= 12 && stripos($kc, 'troque') !== 0 ? 'definida (' . strlen($kc) . ' caracteres)' : 'ausente ou ainda com o texto de exemplo'));
     $base = rtrim((string)cfg('dir_dados'), '/\\');
     foreach (['', '/arquivos', '/backups', '/logs'] as $sub) $c['pasta_dados' . str_replace('/', '_', $sub)] = $ver(is_dir($base . $sub) && is_writable($base . $sub), 'dados' . $sub . ' gravável');
     $c['https'] = $ver(https_ativo(), https_ativo() ? 'HTTPS ativo' : 'sem HTTPS (ative o SSL no painel e depois SETTA_EXIGIR_HTTPS=true no .env)');
