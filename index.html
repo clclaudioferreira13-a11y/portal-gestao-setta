@@ -397,18 +397,26 @@ body.noauth #login{display:flex}
 .mp-filtros select,.mp-filtros input{width:100%}
 @media(max-width:980px){.mp-filtros{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.mp-filtros{grid-template-columns:1fr}}
-/* SIPOC do processo/subprocesso: uma linha por SIPOC (Fornecedor · Entrada · Etapa/Processo · Saída · Cliente) */
-.mp-sipoc-tbl thead th{background:#2F2C83;color:#fff;white-space:nowrap;cursor:default}
-.mp-sipoc-tbl thead th:hover{background:#2F2C83}
-.mp-sipoc-tbl thead th b{color:#F6CF2B;font-size:15px;margin-right:5px}
-.mp-sipoc-tbl thead th.p,.mp-sipoc-tbl thead th.p:hover{background:#F6CF2B;color:#2F2C83}.mp-sipoc-tbl thead th.p b{color:#2F2C83}
-.mp-sipoc-tbl td{white-space:normal;vertical-align:top;min-width:120px;overflow-wrap:anywhere}
-.mp-sipoc-tbl td.no{min-width:0;width:34px;color:var(--cinza);font-weight:700}
-.mp-sipoc-tbl tr{cursor:default}
-.mp-leg{color:var(--cinza);font-style:italic}
+.sipoc{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+@media(max-width:700px){.sipoc{grid-template-columns:1fr;overflow-x:visible}}
+.sipoc .sc{border:1px solid var(--linha);border-radius:10px;background:#fff;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.sipoc .sh{background:#2F2C83;color:#fff;padding:10px 10px;display:flex;align-items:center;gap:8px;min-width:0}
+.sipoc .sh b{font-size:24px;line-height:1;color:#F6CF2B;width:20px;text-align:center;flex:none}
+.sipoc .sh span{font-size:11px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.sipoc .sh.p{background:#F6CF2B;color:#2F2C83}.sipoc .sh.p b{color:#2F2C83}
+.sipoc .si{padding:9px 12px;border-bottom:1px solid #EEEEF5;font-size:12.5px;overflow-wrap:anywhere}
+.sipoc .si:last-child{border-bottom:0}
+.sipoc .si small{display:block;color:var(--cinza);font-size:11.5px;margin-top:2px}
+.sipoc .si .tp{display:inline-block;font-size:10.5px;font-weight:600;border-radius:10px;padding:0 7px;margin-left:4px;background:#EEEEF5;color:#45446B}
+.sipoc .si .no{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#2F2C83;color:#fff;font-size:11px;font-weight:700;margin-right:6px}
+.sipoc .vz{padding:12px;color:var(--cinza);font-size:12px}
 .mp-cab{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 18px;margin-bottom:16px}
 .mp-cab div small{display:block;font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.05em}
 .mp-cab div b{font-size:13.5px}
+.mp-ed td{white-space:normal;vertical-align:top}
+.mp-ed td input,.mp-ed td select{width:100%;min-width:100px}
+.mp-ed .sec{display:flex;align-items:center;gap:10px}
+.mp-ed .sec b.l{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;background:#2F2C83;color:#F6CF2B;font-size:16px}
 .mp-comp{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .mp-comp ul{margin:4px 0 0 18px;font-size:12.5px}
 .mp-savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--linha);padding:10px 0;margin-top:18px;display:flex;gap:10px;justify-content:flex-end;z-index:5}
@@ -6435,24 +6443,21 @@ TITLES.comunicados=['Comunicado Interno','Editor de Comunicados Internos · Grup
 /* ====================================================================
    ╔══════════════════════════════════════════════════════════════╗
    ║  MÓDULO MAPA DE PROCESSO — metodologia SIPOC                  ║
-   ║  Unidade de Negócio → Processo → SIPOC (subprocesso opcional) ║
+   ║  Setor → Processo → Subprocesso → Mapa SIPOC                  ║
    ╚══════════════════════════════════════════════════════════════╝
    Nativo do portal (mesmo banco setta_gd, mesmo padrão visual/CRUD/auditoria/backup):
    · Setores, usuários e documentos: cadastros EXISTENTES (DATA.setores / DATA.usuarios / DATA.documentos), por ID.
-   · Tabelas (IndexedDB v6):
-       mpProcessos     { id, setorId, nome, codigo, objetivo, responsavelId, status, observacoes, versao, sipocs[], ... }
-       mpSubprocessos  { id, processoId, nome, codigo, objetivo, responsavelId, status, observacoes, versao, sipocs[],
-                         comp:{indicadores[], sistemas[], riscos[]}, documentosIds[] }   (subprocesso é OPCIONAL)
-       sipocs[]        { id, ordem, fornecedorId, entrada, etapa, saida, clienteId }  — o SIPOC pertence diretamente ao
-                         PROCESSO (ou, opcionalmente, a um subprocesso); Fornecedor/Cliente = id do cadastro central de usuários
+   · Tabelas novas (IndexedDB v6):
+       mpProcessos     { id, setorId, nome, codigo, objetivo, responsavelId, status, observacoes, versao, ... }   (areaSetorId antigo: preservado, fora da tela)
+       mpSubprocessos  { id, processoId, nome, codigo, objetivo, responsavelId, status, observacoes, versao,
+                         sipoc:{fornecedores[], entradas[], etapas[], saidas[], clientes[], vinculos[]},
+                         comp:{indicadores[], sistemas[], riscos[], controles[]}, documentosIds[] }   (1 mapa SIPOC por subprocesso)
        mpVersoes       { id, entidade, registroId, versao, data, usuario, alteracao, justificativa, snapshot }  (nunca apagadas)
-   · Dados de versões anteriores do módulo preservados no armazenamento e fora da interface:
-       processo.areaSetorId · subprocesso.sipoc{fornecedores[],entradas[],etapas[],saidas[],clientes[],vinculos[]} · subprocesso.comp.controles
-       (o SIPOC antigo é convertido em sipocs[] por migrarMapaSipoc, sem apagar o original)
    · Histórico campo a campo: tabela "auditoria" do portal (entidade "mapa de processo — …").
+   · Riscos / indicadores / sistemas: o portal não possui esses módulos → listas próprias do subprocesso (sem matriz paralela).
    · Permissões: perfil do módulo no cadastro do usuário (Consulta / Editor / Gestor; Administrador = total).
      Toda gravação passa por MapaAPI, que revalida sessão + perfil + regras (o formulário nunca é a fonte da verdade).
-   Rotas: #/mapa · #/mapa/p/<processo> · #/mapa/s/<subprocesso> · #/mapa/e/<subprocesso> (informações complementares)
+   Rotas: #/mapa · #/mapa/p/<processo> · #/mapa/s/<subprocesso> · #/mapa/e/<subprocesso> (editor do SIPOC)
    ==================================================================== */
 ICONES.mapa='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="8" rx="1"/><rect x="17.5" y="8" width="4" height="8" rx="1"/><path d="M6.5 12H10M14 12h3.5"/><path d="M4.5 8V5h15v3"/></svg>';
 const MP_PERFIS={consulta:'Consulta',editor:'Editor (cria e edita)',gestor:'Gestor (revisa, aprova e descontinua)'};
@@ -6463,7 +6468,7 @@ function mpPode(acao,u){ const n=MP_NIVEL[perfilMapaDe(u||SESSION.user)]||0;
   return ({consultar:n>=1,criar:n>=2,editar:n>=2,revisar:n>=3,aprovar:n>=3,excluir:n>=4,administrar:n>=4})[acao]||false; }
 function podeAcessarMapa(){ return !!SESSION.user&&mpPode('consultar'); }
 registrarModulo({id:'mapa',nome:'Mapa de Processo',icone:ICONES.mapa,home:'mapa',views:['mapa'],acesso:podeAcessarMapa,
-  desc:'Mapeamento dos processos por unidade de negócio com a metodologia SIPOC: processos, SIPOC, subprocessos (opcionais), versões e histórico.'});
+  desc:'Mapeamento dos processos por unidade de negócio com a metodologia SIPOC: processos, subprocessos, versões e histórico.'});
 TITLES.mapa=['Mapa de Processo','Processos por unidade de negócio — metodologia SIPOC'];
 
 /* status: reaproveita a nomenclatura já usada no portal ("Em elaboração", "Em revisão") */
@@ -6471,10 +6476,14 @@ const MP_STATUS=['Em elaboração','Em revisão','Aprovado','Vigente','Em atuali
 const MP_STATUS_COR={'Em elaboração':'#9AA0A6','Em revisão':'#3B7DB8','Aprovado':'#4FA35A','Vigente':'#007F38','Em atualização':'#E0912B','Descontinuado':'#6B7280'};
 const MP_STATUS_GESTOR=['Aprovado','Vigente','Descontinuado'];   // só Gestor/Administrador define ou retira estes status
 const MP_STATUS_VERSIONA=['Aprovado','Vigente'];                 // alterar conteúdo aprovado/vigente gera nova versão (com justificativa)
-/* SIPOC: Fornecedor e Cliente vêm do cadastro central de usuários (persistido o id; exibido o nome) */
-const MP_SIPOC=[{k:'fornecedorId',l:'S',t:'FORNECEDOR',rot:'Fornecedor',usuario:'fornecedor'},{k:'entrada',l:'I',t:'ENTRADA',rot:'Entrada'},
-  {k:'etapa',l:'P',t:'ETAPA / PROCESSO',rot:'Etapa / Processo'},{k:'saida',l:'O',t:'SAÍDA',rot:'Saída'},{k:'clienteId',l:'C',t:'CLIENTE',rot:'Cliente',usuario:'cliente'}];
-const MP_COMP=[['indicadores','INDICADORES'],['sistemas','SISTEMAS UTILIZADOS'],['riscos','RISCOS DO PROCESSO']];
+const MP_CAT=[
+  {k:'fornecedores',l:'S',t:'FORNECEDORES',item:'Fornecedor',campos:[['nome','Fornecedor',1],['tipo','Tipo',0,['Interno','Externo']],['descricao','Descrição'],['obs','Observações']]},
+  {k:'entradas',l:'I',t:'ENTRADAS',item:'Entrada',campos:[['nome','Entrada',1],['tipo','Tipo',0,['Solicitação','Documento','Informação','Material','Sistema','Recurso','Outro']],['descricao','Descrição'],['origem','Origem'],['obs','Observações']]},
+  {k:'etapas',l:'P',t:'PROCESSO',item:'Etapa',campos:[['nome','Etapa',1],['descricao','Descrição'],['responsavelId','Responsável',0,'usuarios']]},
+  {k:'saidas',l:'O',t:'SAÍDAS',item:'Saída',campos:[['nome','Saída',1],['tipo','Tipo',0,['Documento','Serviço','Produto','Informação','Solicitação concluída','Outro']],['descricao','Descrição'],['destino','Destino'],['obs','Observações']]},
+  {k:'clientes',l:'C',t:'CLIENTES',item:'Cliente',campos:[['nome','Cliente',1],['tipo','Tipo',0,['Interno','Externo']],['descricao','Descrição'],['obs','Observações']]}];
+const MP_COMP=[['indicadores','INDICADORES'],['sistemas','SISTEMAS UTILIZADOS'],['riscos','RISCOS DO PROCESSO'],['controles','CONTROLES']];
+const MP_VINC=[['fornecedorId','fornecedores','Fornecedor'],['entradaId','entradas','Entrada'],['etapaId','etapas','Etapa do processo'],['saidaId','saidas','Saída'],['clienteId','clientes','Cliente']];
 
 const mpProcs=()=>DATA.mpProcessos.filter(p=>!p.removido);
 const mpProc=id=>DATA.mpProcessos.find(p=>p.id===id&&!p.removido)||null;
@@ -6483,46 +6492,76 @@ const mpSubsDe=pid=>DATA.mpSubprocessos.filter(s=>s.processoId===pid&&!s.removid
 const mpSetor=id=>DATA.setores.find(s=>s.id===id)||null;
 const mpSetorNome=id=>mpSetor(id)?.nome||'—';
 const mpNomeU=id=>id?(nomeUsuario(id)||'—'):'—';
-const mpSipocsDe=r=>(Array.isArray(r?.sipocs)?r.sipocs:[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
-const mpTemSipoc=r=>mpSipocsDe(r).length>0;
-/* texto exibido de um campo do SIPOC; registros convertidos do modelo antigo podem trazer fornecedor/cliente em texto livre (legado) */
-function mpSipocTexto(l,c){ if(!c.usuario) return l[c.k]||''; if(l[c.k]) return mpNomeU(l[c.k]); return l.legado?.[c.usuario]||''; }
-function mpSipocCelula(l,c){ if(c.usuario&&!l[c.k]&&l.legado?.[c.usuario]) return el('span',{class:'mp-leg',title:'Texto do cadastro anterior — selecione o usuário correspondente ao editar'},l.legado[c.usuario]+' (registro anterior)');
-  return mpSipocTexto(l,c)||el('span',{class:'mut'},'—'); }
-const mpTextoSipocs=r=>mpSipocsDe(r).map(l=>MP_SIPOC.map(c=>mpSipocTexto(l,c)).join(' ')).join(' ');
-/* conversão do SIPOC antigo (listas por categoria + ligações de rastreabilidade) em linhas de SIPOC — função pura, sem gravação.
-   Linhas = ligações cadastradas; itens fora de qualquer ligação são agrupados pela posição. Fornecedor/cliente: usuário com o mesmo nome, senão texto legado. */
-function mpConverterSipocLegado(x,acharUsuario){
+const mpSipocVazio=()=>({fornecedores:[],entradas:[],etapas:[],saidas:[],clientes:[],vinculos:[]});
+const mpTemSipoc=s=>MP_CAT.some(c=>(s.sipoc?.[c.k]||[]).length);
+/* ====================================================================
+   RETORNO AO CADASTRO DE SIPOC POR SUBPROCESSO (restauração da forma anterior)
+   Entre as versões _11 e a restauração, o SIPOC foi gravado como linhas (registro.sipocs[]: fornecedorId, entrada, etapa,
+   saida, clienteId). migrarMapaSipoc() devolve esses dados a este formato — itens das 5 colunas + ligações de rastreabilidade —
+   sem apagar nada (as linhas continuam guardadas no próprio registro). SIPOC cadastrado direto no processo vai para um
+   subprocesso "SIPOC do processo", pois neste formato o mapa SIPOC pertence ao subprocesso. Idempotente.
+   ==================================================================== */
+function mpLinhasParaSipoc(linhas,detalhesDe){
+  const x=mpSipocVazio();
+  const nomeU=id=>{ const u=id&&(DATA.usuarios||[]).find(v=>v.id===id); return u?u.nome:''; };
+  const antigo=(cat,nome)=>(detalhesDe&&Array.isArray(detalhesDe[cat])?detalhesDe[cat]:[]).find(i=>norm(i.nome)===norm(nome));
+  const item=(cat,nome,tipo)=>{ nome=String(nome||'').trim(); if(!nome) return '';
+    const lst=x[cat]; const ja=lst.find(i=>norm(i.nome)===norm(nome)); if(ja) return ja.id;
+    const c=MP_CAT.find(k=>k.k===cat), base=antigo(cat,nome)||{}, it={id:uid()};
+    c.campos.forEach(([f])=>{ it[f]=base[f]!==undefined?base[f]:''; }); it.nome=nome; if(!it.tipo&&tipo&&c.campos.some(([f])=>f==='tipo')) it.tipo=tipo;
+    if(cat==='etapas') it.ordem=lst.length+1; lst.push(it); return it.id; };
+  (Array.isArray(linhas)?linhas:[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0)).forEach(l=>{
+    const fn=nomeU(l.fornecedorId)||(l.legado&&l.legado.fornecedor)||'', cn=nomeU(l.clienteId)||(l.legado&&l.legado.cliente)||'';
+    const v={id:uid(),fornecedorId:item('fornecedores',fn,l.fornecedorId?'Interno':''),entradaId:item('entradas',l.entrada),etapaId:item('etapas',l.etapa),
+      saidaId:item('saidas',l.saida),clienteId:item('clientes',cn,l.clienteId?'Interno':'')};
+    if(MP_VINC.filter(([f])=>v[f]).length>=2&&!x.vinculos.some(o=>MP_VINC.every(([f])=>(o[f]||'')===(v[f]||'')))) x.vinculos.push(v); });
+  return x; }
+/* conversão automática feita na _11 (SIPOC antigo → linhas), reproduzida só para saber se as linhas foram alteradas depois */
+function mpAssinaturaDoAntigo(x){
   x=x||{}; const cat=k=>(Array.isArray(x[k])?x[k]:[]).filter(i=>i&&String(i.nome||'').trim());
-  const F=cat('fornecedores'),E=cat('entradas'),P=cat('etapas'),S=cat('saidas'),C=cat('clientes'), usados=new Set(), linhas=[];
+  const F=cat('fornecedores'),E=cat('entradas'),P=cat('etapas'),S=cat('saidas'),C=cat('clientes'), usados=new Set(), out=[];
   const nome=i=>i?String(i.nome).trim():'', por=(a,id)=>id?a.find(i=>i.id===id):null;
-  const add=(f,e,p,s,c)=>{ [f,e,p,s,c].forEach(i=>i&&usados.add(i));
-    const L={id:uid(),fornecedorId:'',entrada:nome(e),etapa:nome(p),saida:nome(s),clienteId:''}, leg={};
-    if(f){ const u=acharUsuario&&acharUsuario(nome(f)); if(u) L.fornecedorId=u; else leg.fornecedor=nome(f); }
-    if(c){ const u=acharUsuario&&acharUsuario(nome(c)); if(u) L.clienteId=u; else leg.cliente=nome(c); }
-    if(Object.keys(leg).length) L.legado=leg; linhas.push(L); };
-  (Array.isArray(x.vinculos)?x.vinculos:[]).forEach(v=>{ const it=[por(F,v?.fornecedorId),por(E,v?.entradaId),por(P,v?.etapaId),por(S,v?.saidaId),por(C,v?.clienteId)]; if(it.some(Boolean)) add(...it); });
+  const add=(f,e,p,s,c)=>{ [f,e,p,s,c].forEach(i=>i&&usados.add(i)); out.push([nome(f),nome(e),nome(p),nome(s),nome(c)]); };
+  (Array.isArray(x.vinculos)?x.vinculos:[]).forEach(v=>{ const it=[por(F,v&&v.fornecedorId),por(E,v&&v.entradaId),por(P,v&&v.etapaId),por(S,v&&v.saidaId),por(C,v&&v.clienteId)]; if(it.some(Boolean)) add(...it); });
   const resto=[F,E,P,S,C].map(a=>a.filter(i=>!usados.has(i))), max=Math.max(0,...resto.map(a=>a.length));
   for(let i=0;i<max;i++) add(...resto.map(a=>a[i]));
-  linhas.forEach((l,i)=>l.ordem=i+1); return linhas; }
-/* usuário único com o nome informado, na empresa do registro */
-function mpUsuarioPorNome(nome,empId){ const n=norm(nome); if(!n) return '';
-  const a=DATA.usuarios.filter(u=>norm(u.nome)===n&&(!empId||(u.empresasIds||[]).includes(empId)||u.perfil==='Administrador')); return a.length===1?a[0].id:''; }
-/* migração (idempotente, no boot): subprocessos do modelo antigo ganham sipocs[] convertidos; o objeto "sipoc" original é preservado */
+  return JSON.stringify(out.map(r=>r.map(norm))); }
+function mpAssinaturaDasLinhas(linhas){
+  const nomeU=id=>{ const u=id&&(DATA.usuarios||[]).find(v=>v.id===id); return u?u.nome:''; };
+  return JSON.stringify((Array.isArray(linhas)?linhas:[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0))
+    .map(l=>[nomeU(l.fornecedorId)||(l.legado&&(l.legado.fornecedor||l.legado.fornecedorSubstituido))||'',l.entrada||'',l.etapa||'',l.saida||'',
+             nomeU(l.clienteId)||(l.legado&&(l.legado.cliente||l.legado.clienteSubstituido))||''].map(norm))); }
 async function migrarMapaSipoc(){
-  const pend=(DATA.mpSubprocessos||[]).filter(s=>!Array.isArray(s.sipocs)); if(!pend.length) return;
-  let linhas=0;
-  for(const s of pend){ const ls=mpConverterSipocLegado(s.sipoc,n=>mpUsuarioPorNome(n,s.empresaId)); linhas+=ls.length;
-    await put('mpSubprocessos',Object.assign({},s,{sipocs:ls,sipocConvertidoEm:nowISO()})); }
-  const base=(DATA.config.find(c=>c.id==='multiempresa')||{}).empresaBaseId||null;
-  await put('auditoria',{id:uid(),entidade:'mapa de processo — migração',registroId:'-',acao:'converter SIPOC (Processo → SIPOC)',campo:'Subprocessos',valorAnterior:'',
-    valorNovo:`${pend.length} subprocesso(s); ${linhas} linha(s) de SIPOC. Dados anteriores preservados no armazenamento.`,usuario:'Sistema',dataHora:nowISO(),empresaId:base});
-  await reload('mpSubprocessos'); await reload('auditoria'); }
+  const agora=nowISO(); const rel=[];
+  // 1) subprocessos com SIPOC em linhas
+  for(const s of (DATA.mpSubprocessos||[]).filter(s=>Array.isArray(s.sipocs)&&!s.sipocRevertidoEm)){
+    const temAntigo=!!s.sipoc&&MP_CAT.some(c=>(s.sipoc[c.k]||[]).length);
+    const novo=Object.assign({},s,{sipocRevertidoEm:agora});
+    if(!s.sipocs.length){ /* nada cadastrado no formato de linhas */ }
+    else if(temAntigo&&mpAssinaturaDasLinhas(s.sipocs)===mpAssinaturaDoAntigo(s.sipoc)){ /* linhas = cópia automática do antigo, sem alteração: o antigo vale */ }
+    else { novo.sipoc=mpLinhasParaSipoc(s.sipocs,temAntigo?s.sipoc:null); if(temAntigo) novo.sipocAnteriorAoRetorno=s.sipoc; rel.push(`${s.codigo}: ${s.sipocs.length} linha(s) de SIPOC`); }
+    await put('mpSubprocessos',novo); }
+  // 2) SIPOC cadastrado direto no processo → subprocesso "SIPOC do processo"
+  for(const p of (DATA.mpProcessos||[]).filter(p=>Array.isArray(p.sipocs)&&p.sipocs.length&&!p.sipocRevertidoEm)){
+    let nome='SIPOC do processo', n=2; while((DATA.mpSubprocessos||[]).some(x=>x.processoId===p.id&&!x.removido&&norm(x.nome)===norm(nome))) nome=`SIPOC do processo (${n++})`;
+    const sub={id:uid(),processoId:p.id,nome,codigo:mpProximoCodigoSub(p),objetivo:p.objetivo||'',responsavelId:p.responsavelId||null,status:p.status||'Em elaboração',
+      observacoes:'Criado automaticamente na restauração do cadastro de SIPOC: reúne o SIPOC que estava cadastrado diretamente no processo.',
+      versao:1,sipoc:mpLinhasParaSipoc(p.sipocs,null),comp:{indicadores:[],sistemas:[],riscos:[],controles:[]},documentosIds:[],
+      criadoEm:agora,criadoPor:'Sistema (restauração do SIPOC)',atualizadoEm:agora,atualizadoPor:'Sistema (restauração do SIPOC)',sipocRevertidoEm:agora};
+    if(p.empresaId) sub.empresaId=p.empresaId; if(p.removido){ sub.removido=true; sub.removidoEm=p.removidoEm||agora; }
+    await put('mpSubprocessos',sub); DATA.mpSubprocessos.push(sub);
+    await put('mpProcessos',Object.assign({},p,{sipocRevertidoEm:agora}));
+    rel.push(`${p.codigo}: ${p.sipocs.length} linha(s) do processo → subprocesso ${sub.codigo}`); }
+  if(rel.length){
+    const base=(DATA.config.find(c=>c.id==='multiempresa')||{}).empresaBaseId||null;
+    await put('auditoria',{id:uid(),entidade:'mapa de processo — migração',registroId:'-',acao:'restaurar cadastro de SIPOC (formato por subprocesso)',campo:'SIPOC',valorAnterior:'linhas',
+      valorNovo:rel.join(' · ')+'. Dados em linhas preservados no registro.',usuario:'Sistema',dataHora:agora,empresaId:base}); }
+  await reload('mpSubprocessos'); await reload('mpProcessos'); await reload('auditoria'); }
 function mpStatusTag(s){ const c=MP_STATUS_COR[s]||'#8B8BA7'; return `<span class="tag" style="background:${c}1f;color:${c}">${esc(s||'—')}</span>`; }
 function mpIndicadores(){ const P=mpProcs(), S=DATA.mpSubprocessos.filter(s=>!s.removido&&mpProc(s.processoId));
   const set=new Set(P.map(p=>p.setorId));
   return [{l:'Unidades de Negócio com processos',n:`${set.size} de ${DATA.setores.length}`,c:'#2F2C83'},{l:'Processos',n:P.length,c:'#2F2C83'},{l:'Subprocessos',n:S.length,c:'#3B7DB8'},
-    {l:'SIPOCs cadastrados',n:[...P,...S].reduce((n,r)=>n+mpSipocsDe(r).length,0),c:'#B58A00'},{l:'Processos ativos',n:P.filter(p=>p.status!=='Descontinuado').length,c:'#007F38'},
+    {l:'Mapas SIPOC',n:S.filter(mpTemSipoc).length,c:'#B58A00'},{l:'Processos ativos',n:P.filter(p=>p.status!=='Descontinuado').length,c:'#007F38'},
     {l:'Processos em revisão',n:P.filter(p=>['Em revisão','Em atualização'].includes(p.status)).length,c:'#E0912B'},
     {l:'Processos descontinuados',n:P.filter(p=>p.status==='Descontinuado').length,c:'#6B7280'}]; }
 /* códigos: segue a configuração corporativa de codificação (separador / dígitos) — {SETOR}.MP.{000} e {PROCESSO}.{00}; nunca reutiliza */
@@ -6534,8 +6573,8 @@ function mpProximoCodigoSub(p){ const sep=cfg('codificacao').separador||'.'; con
   DATA.mpSubprocessos.forEach(s=>{ if(s.processoId===p.id&&String(s.codigo||'').startsWith(pre)){ const n=parseInt(s.codigo.slice(pre.length),10); if(n>max)max=n; } });
   return pre+String(max+1).padStart(2,'0'); }
 /* pesquisa: setor, processo, subprocesso, código, responsável, fornecedor, entrada, saída, cliente (e etapas) */
-function mpTextoSub(s){ return [s.nome,s.codigo,mpNomeU(s.responsavelId),mpTextoSipocs(s)].join(' '); }
-function mpTextoProc(p){ return [mpSetorNome(p.setorId),p.nome,p.codigo,mpNomeU(p.responsavelId),p.objetivo,mpTextoSipocs(p)].join(' '); }
+function mpTextoSub(s){ const x=s.sipoc||{}; return [s.nome,s.codigo,mpNomeU(s.responsavelId),...MP_CAT.flatMap(c=>(x[c.k]||[]).map(i=>i.nome))].join(' '); }
+function mpTextoProc(p){ return [mpSetorNome(p.setorId),p.nome,p.codigo,mpNomeU(p.responsavelId),p.objetivo].join(' '); }
 
 /* ====================================================================
    MapaAPI — camada de regras/autorização (equivalente ao backend). O usuário vem sempre da sessão revalidada.
@@ -6562,12 +6601,13 @@ const MapaAPI=(()=>{
   function diffCampos(defs,a,b){ const out=[]; defs.forEach(([k,l,f])=>{ const va=f?f(a[k]):String(a[k]??''), vb=f?f(b[k]):String(b[k]??''); if(va!==vb) out.push([l,va,vb]); }); return out; }
   const DEF_PROC=[['setorId','Unidade de Negócio',mpSetorNome],['nome','Nome do processo'],['codigo','Código'],['objetivo','Objetivo'],['responsavelId','Responsável',mpNomeU],
     ['status','Status'],['observacoes','Observações']];
+  const listaNomes=l=>(l||[]).map(i=>i.nome).join('; ');
   const DEF_SUB=[['nome','Nome do subprocesso'],['codigo','Código'],['objetivo','Objetivo'],['responsavelId','Responsável',mpNomeU],['status','Status'],['observacoes','Observações'],
+    ...MP_CAT.map(c=>['__'+c.k,c.t.charAt(0)+c.t.slice(1).toLowerCase(),null]),['__vinculos','Rastreabilidade SIPOC',null],
     ...MP_COMP.map(([k,l])=>['__c_'+k,l.charAt(0)+l.slice(1).toLowerCase(),null]),['__docs','Documentos relacionados',null]];
-  const DEF_SIPOC=MP_SIPOC.map(c=>[c.k,c.rot,c.usuario?(v=>v?mpNomeU(v):''):null]);
-  function planoSub(s){ const o=Object.assign({},s); MP_COMP.forEach(([k])=>o['__c_'+k]=(s.comp?.[k]||[]).join('; '));
+  function planoSub(s){ const o=Object.assign({},s); MP_CAT.forEach(c=>o['__'+c.k]=c.k==='etapas'?(s.sipoc?.etapas||[]).map(e=>`${e.ordem}. ${e.nome}`).join('; '):listaNomes(s.sipoc?.[c.k]));
+    o.__vinculos=String((s.sipoc?.vinculos||[]).length)+' vínculo(s)'; MP_COMP.forEach(([k])=>o['__c_'+k]=(s.comp?.[k]||[]).join('; '));
     o.__docs=(s.documentosIds||[]).map(id=>docById(id)?.codigo||id).join('; '); return o; }
-  const resumoSipoc=l=>MP_SIPOC.map(c=>`${c.rot}: ${mpSipocTexto(l,c)||'—'}`).join('; ');
 
   /* ---------- PROCESSO ---------- */
   async function salvarProcesso(dados,ver){
@@ -6582,8 +6622,8 @@ const MapaAPI=(()=>{
     if(DATA.mpProcessos.some(p=>p.id!==dados.id&&String(p.codigo||'').toUpperCase()===codigo)) return neg(409,`O código ${codigo} já está em uso (códigos não são reutilizados).`);
     if(dados.responsavelId&&!usuarioPorId(dados.responsavelId)) return neg(422,'Responsável inválido.');
     const status=dados.status||'Em elaboração', eS=checaStatus(status,novo?'Em elaboração':ant.status,u); if(eS) return neg(403,eS);
-    /* edição preserva campos fora do formulário (SIPOCs do processo e, em registros antigos, a antiga "Área responsável") */
-    const rec=novo?{id:uid(),versao:1,criadoEm:nowISO(),criadoPor:u.nome,criadoPorId:u.id,sipocs:[]}:Object.assign({},ant);
+    /* "Área responsável" saiu do cadastro de Processo: a edição preserva o valor antigo, se existir, sem exibi-lo */
+    const rec=novo?{id:uid(),versao:1,criadoEm:nowISO(),criadoPor:u.nome,criadoPorId:u.id}:Object.assign({},ant);
     Object.assign(rec,{setorId:dados.setorId,nome,codigo,objetivo:txt(dados.objetivo),responsavelId:dados.responsavelId||null,
       status,observacoes:txt(dados.observacoes)});
     const mud=novo?[]:diffCampos(DEF_PROC,ant,rec);
@@ -6600,55 +6640,23 @@ const MapaAPI=(()=>{
       if(rec.status==='Descontinuado'&&ant.status!=='Descontinuado') await auditar('processo',rec.id,'descontinuar','Status',ant.status,rec.status); }
     markDirty(); return {ok:true,rec};
   }
-  /* ---------- SIPOC (vinculado diretamente ao PROCESSO; subprocesso opcional) ---------- */
-  function alvoSipoc(d){ const p=mpProc(d?.processoId); if(!p) return {erro:neg(404,'Processo não encontrado.')};
-    if(!d.subprocessoId) return {p,alvo:p,ent:'processo',store:'mpProcessos'};
-    const sp=mpSub(d.subprocessoId); if(!sp||sp.processoId!==p.id) return {erro:neg(422,'O subprocesso informado não pertence a este processo.')};
-    return {p,alvo:sp,ent:'subprocesso',store:'mpSubprocessos'}; }
-  function checaAlvo(A,u){ if(A.p.status==='Descontinuado'&&!mpPode('aprovar',u)) return neg(403,'O processo está descontinuado.');
-    if(A.ent==='subprocesso'&&A.alvo.status==='Descontinuado'&&!mpPode('aprovar',u)) return neg(403,'O subprocesso está descontinuado.'); return null; }
-  /* grava a lista de SIPOCs no registro dono (processo/subprocesso): versão quando Aprovado/Vigente, auditoria e snapshot */
-  async function gravarSipocs(A,lista,mud,ver,u){
-    const bump=precisaVersao(A.alvo,mud);
-    if(bump&&faltaVersao(ver)) return neg(428,'Informe a descrição da alteração e a justificativa da nova versão.');
-    const rec=JSON.parse(JSON.stringify(A.alvo)); rec.sipocs=lista;
-    if(bump) rec.versao=(A.alvo.versao||1)+1;
-    Object.assign(rec,{atualizadoEm:nowISO(),atualizadoPor:u.nome,atualizadoPorId:u.id});
-    await put(A.store,rec); upsert(A.store,rec);
-    for(const [c,a,n,acao] of mud) await auditar(A.ent,rec.id,acao,c,a,n);
-    if(bump){ await auditar(A.ent,rec.id,'nova versão','Versão',pad2(A.alvo.versao),pad2(rec.versao)); await snapshot(A.ent,rec,ver.alteracao,ver.justificativa,u); }
-    if(A.ent==='subprocesso'){ const pp=Object.assign({},A.p,{atualizadoEm:rec.atualizadoEm,atualizadoPor:u.nome}); await put('mpProcessos',pp); upsert('mpProcessos',pp); }
-    markDirty(); return {ok:true,rec}; }
-  async function salvarSipoc(dados,ver){
-    const novo=!dados?.id, s=sess(novo?'criar':'editar'); if(!s.ok) return s; const u=s.u;
-    const A=alvoSipoc(dados); if(A.erro) return A.erro; const eA=checaAlvo(A,u); if(eA) return eA;
-    const lista=mpSipocsDe(A.alvo).map(l=>JSON.parse(JSON.stringify(l)));
-    const ant=novo?null:lista.find(l=>l.id===dados.id); if(!novo&&!ant) return neg(404,'SIPOC não encontrado.');
-    const L=novo?{id:uid(),ordem:lista.reduce((m,l)=>Math.max(m,l.ordem||0),0)+1,criadoEm:nowISO(),criadoPor:u.nome,criadoPorId:u.id}:Object.assign({},ant);
-    const emp=A.alvo.empresaId||A.p.empresaId||empresaAtivaId();
-    for(const c of MP_SIPOC){
-      if(c.usuario){ const v=String(dados[c.k]??'').trim();
-        if(v&&v!==ant?.[c.k]){ const x=usuarioPorId(v);   // fornecedor/cliente: usuário EXISTENTE, ativo e da empresa do processo (id persistido)
-          if(!x||x.status!=='Ativo'||!usuarioNaEmpresa(x,emp)) return neg(422,`${c.rot}: selecione um usuário ativo do cadastro de usuários.`); }
-        L[c.k]=v;
-        if(v&&L.legado?.[c.usuario]){ L.legado=Object.assign({},L.legado); L.legado[c.usuario+'Substituido']=L.legado[c.usuario]; delete L.legado[c.usuario]; } }   // texto antigo fica guardado, fora da tela
-      else L[c.k]=txt(dados[c.k],500); }
-    if(!MP_SIPOC.some(c=>mpSipocTexto(L,c))) return neg(422,'Preencha ao menos um campo do SIPOC: Fornecedor, Entrada, Etapa / Processo, Saída ou Cliente.');
-    const num=novo?lista.length+1:lista.indexOf(ant)+1;
-    const mud=novo?[[`SIPOC nº ${num}`,'',resumoSipoc(L),'incluir SIPOC']]
-      :diffCampos(DEF_SIPOC,ant,L).map(([c,a,n])=>[`SIPOC nº ${num} — ${c}`,a,n,'editar SIPOC']);
-    if(!novo&&!mud.length) return {ok:true,rec:A.alvo,semAlteracao:true};
-    Object.assign(L,{atualizadoEm:nowISO(),atualizadoPor:u.nome,atualizadoPorId:u.id});
-    if(novo) lista.push(L); else lista[lista.indexOf(ant)]=L;
-    const r=await gravarSipocs(A,lista,mud,ver,u); if(r.ok) r.linha=L; return r; }
-  async function excluirSipoc(dados,ver){
-    const s=sess('editar'); if(!s.ok) return s; const u=s.u;
-    const A=alvoSipoc(dados); if(A.erro) return A.erro; const eA=checaAlvo(A,u); if(eA) return eA;
-    const lista=mpSipocsDe(A.alvo), ix=lista.findIndex(l=>l.id===dados.id); if(ix<0) return neg(404,'SIPOC não encontrado.');
-    const ant=lista[ix], resto=lista.filter((_,i)=>i!==ix).map((l,i)=>Object.assign({},l,{ordem:i+1}));
-    return gravarSipocs(A,resto,[[`SIPOC nº ${ix+1}`,resumoSipoc(ant),'(excluído)','excluir SIPOC']],ver,u); }
-  const copiarSipocs=r=>mpSipocsDe(r).map(l=>Object.assign(JSON.parse(JSON.stringify(l)),{id:uid()}));
-  /* ---------- SUBPROCESSO (opcional) ---------- */
+  /* ---------- SUBPROCESSO + MAPA SIPOC ---------- */
+  function limparSipoc(x){
+    const out=mpSipocVazio(), erros=[];
+    MP_CAT.forEach(c=>{ const vistos=new Set();
+      (Array.isArray(x?.[c.k])?x[c.k]:[]).slice(0,300).forEach((it,i)=>{
+        const o={id:typeof it?.id==='string'&&it.id?it.id:uid()};
+        c.campos.forEach(([f,,req,opts])=>{ let v=txt(it?.[f],f==='descricao'||f==='obs'?1000:200);
+          if(opts==='usuarios') v=v&&usuarioPorId(v)?v:''; else if(Array.isArray(opts)&&v&&!opts.includes(v)) v='';
+          o[f]=v; if(req&&!v) erros.push(`${c.item} nº ${i+1}: informe ${c.campos[0][1].toLowerCase()}.`); });
+        const chave=norm(o.nome)+'|'+norm(o.tipo||'');
+        if(o.nome&&vistos.has(chave)) erros.push(`${c.item} "${o.nome}" está duplicado(a).`); vistos.add(chave);
+        if(c.k==='etapas') o.ordem=i+1;
+        out[c.k].push(o); }); });
+    (Array.isArray(x?.vinculos)?x.vinculos:[]).slice(0,300).forEach(v=>{ const o={id:typeof v?.id==='string'&&v.id?v.id:uid()};
+      MP_VINC.forEach(([f,cat])=>{ o[f]=out[cat].some(i=>i.id===v?.[f])?v[f]:''; });
+      if(MP_VINC.filter(([f])=>o[f]).length>=2) out.vinculos.push(o); });
+    return {sipoc:out,erros}; }
   async function salvarSubprocesso(dados,ver){
     const novo=!dados.id, s=sess(novo?'criar':'editar'); if(!s.ok) return s; const u=s.u;
     const ant=novo?null:mpSub(dados.id); if(!novo&&!ant) return neg(404,'Subprocesso não encontrado.');
@@ -6657,22 +6665,23 @@ const MapaAPI=(()=>{
     if(p.status==='Descontinuado'&&!mpPode('aprovar',u)) return neg(403,'O processo está descontinuado.');
     if(ant&&ant.status==='Descontinuado'&&!mpPode('aprovar',u)) return neg(403,'Subprocesso descontinuado: somente Gestor ou Administrador pode alterá-lo.');
     const nome=dados.nome!==undefined?txt(dados.nome,200):(ant?.nome||'');
-    if(!nome) return neg(422,'Informe o nome do subprocesso.');
+    if(!nome) return neg(422,'Informe o nome do subprocesso (identificação do mapa SIPOC).');
     if(mpSubsDe(procId).some(x=>x.id!==dados.id&&norm(x.nome)===norm(nome))) return neg(409,'Já existe um subprocesso com este nome neste processo.');
     const codigo=txt(dados.codigo,50).toUpperCase()||(novo?mpProximoCodigoSub(p):ant.codigo);
     if(codigo&&DATA.mpSubprocessos.some(x=>x.id!==dados.id&&String(x.codigo||'').toUpperCase()===codigo)) return neg(409,`O código ${codigo} já está em uso.`);
     const respId=dados.responsavelId!==undefined?(dados.responsavelId||null):(ant?.responsavelId||null);
     if(respId&&!usuarioPorId(respId)) return neg(422,'Responsável inválido.');
     const status=dados.status||ant?.status||'Em elaboração', eS=checaStatus(status,novo?'Em elaboração':ant.status,u); if(eS) return neg(403,eS);
-    /* SIPOCs do subprocesso: gravados só por salvarSipoc/excluirSipoc. comp: chaves fora da tela (ex.: antigos "controles") são preservadas */
-    let comp=ant?.comp||{indicadores:[],sistemas:[],riscos:[]};
-    if(dados.comp!==undefined){ comp=Object.assign({},ant?.comp||{}); MP_COMP.forEach(([k])=>comp[k]=[...new Set((Array.isArray(dados.comp?.[k])?dados.comp[k]:[]).map(v=>txt(v,300)).filter(Boolean))].slice(0,100)); }
+    let sipoc=ant?.sipoc||mpSipocVazio();
+    if(dados.sipoc!==undefined){ const l=limparSipoc(dados.sipoc); if(l.erros.length) return neg(422,l.erros.slice(0,4).join(' ')); sipoc=l.sipoc; }
+    let comp=ant?.comp||{indicadores:[],sistemas:[],riscos:[],controles:[]};
+    if(dados.comp!==undefined){ comp={}; MP_COMP.forEach(([k])=>comp[k]=[...new Set((Array.isArray(dados.comp?.[k])?dados.comp[k]:[]).map(v=>txt(v,300)).filter(Boolean))].slice(0,100)); }
     let docs=ant?.documentosIds||[];
     if(dados.documentosIds!==undefined){ const antes=new Set(docs);
       docs=[...new Set((dados.documentosIds||[]).filter(id=>{ const d=docById(id); return d&&(antes.has(id)||docVisivel(d)); }))]; }   // só vincula documentos existentes e visíveis ao usuário
-    const rec=novo?{id:uid(),processoId:procId,versao:1,criadoEm:nowISO(),criadoPor:u.nome,criadoPorId:u.id,sipocs:[]}:JSON.parse(JSON.stringify(ant));
+    const rec=novo?{id:uid(),processoId:procId,versao:1,criadoEm:nowISO(),criadoPor:u.nome,criadoPorId:u.id}:JSON.parse(JSON.stringify(ant));
     Object.assign(rec,{nome,codigo,objetivo:dados.objetivo!==undefined?txt(dados.objetivo):(ant?.objetivo||''),responsavelId:respId,status,
-      observacoes:dados.observacoes!==undefined?txt(dados.observacoes):(ant?.observacoes||''),comp,documentosIds:docs});
+      observacoes:dados.observacoes!==undefined?txt(dados.observacoes):(ant?.observacoes||''),sipoc,comp,documentosIds:docs});
     const mud=novo?[]:diffCampos(DEF_SUB,planoSub(ant),planoSub(rec));
     if(!novo&&!mud.length) return {ok:true,rec:ant,semAlteracao:true};
     const bump=precisaVersao(ant,mud.filter(m=>m[0]!=='Status'));
@@ -6695,11 +6704,11 @@ const MapaAPI=(()=>{
     let nome=p.nome+' (cópia)', n=2; while(mpProcs().some(x=>x.setorId===p.setorId&&norm(x.nome)===norm(nome))) nome=`${p.nome} (cópia ${n++})`;
     const r=await salvarProcesso({setorId:p.setorId,nome,codigo:'',objetivo:p.objetivo,responsavelId:p.responsavelId,status:'Em elaboração',observacoes:p.observacoes});
     if(!r.ok) return r;
-    const np=Object.assign({},r.rec,{sipocs:copiarSipocs(p)}); await put('mpProcessos',np); upsert('mpProcessos',np); r.rec=np;   // SIPOCs do processo (novos ids)
-    for(const sp of mpSubsDe(p.id)){
+    for(const sp of mpSubsDe(p.id)){ const sip=JSON.parse(JSON.stringify(sp.sipoc||mpSipocVazio()));
+      const mapa={}; MP_CAT.forEach(c=>sip[c.k].forEach(i=>{ const nid=uid(); mapa[i.id]=nid; i.id=nid; }));
+      sip.vinculos.forEach(v=>{ v.id=uid(); MP_VINC.forEach(([f])=>{ if(v[f]) v[f]=mapa[v[f]]||''; }); });
       const r2=await salvarSubprocesso({processoId:r.rec.id,nome:sp.nome,codigo:'',objetivo:sp.objetivo,responsavelId:sp.responsavelId,status:'Em elaboração',
-        observacoes:sp.observacoes,comp:sp.comp,documentosIds:sp.documentosIds}); if(!r2.ok) return r2;
-      const ns=Object.assign({},r2.rec,{sipocs:copiarSipocs(sp)}); await put('mpSubprocessos',ns); upsert('mpSubprocessos',ns); }
+        observacoes:sp.observacoes,sipoc:sip,comp:sp.comp,documentosIds:sp.documentosIds}); if(!r2.ok) return r2; }
     await auditar('processo',r.rec.id,'duplicar','Origem',`${p.codigo} — ${p.nome}`,`${r.rec.codigo} — ${r.rec.nome}`);
     return r; }
   /* ---------- exclusão lógica (somente Administrador; versões e histórico preservados) ---------- */
@@ -6714,8 +6723,8 @@ const MapaAPI=(()=>{
     markDirty(); return {ok:true}; }
   /* ---------- leitura (consulta) ---------- */
   function ler(ent,id){ const s=sess('consultar'); if(!s.ok) return s; const r=ent==='processo'?mpProc(id):mpSub(id); return r?{ok:true,rec:r}:neg(404,'Registro não encontrado.'); }
-  async function registrarExportacao(ent,rec,formato){ const s=sess('consultar'); if(!s.ok) return s; await auditar(ent,rec.id,'exportar','Formato','',formato); return {ok:true}; }
-  return Object.freeze({salvarProcesso,salvarSubprocesso,salvarSipoc,excluirSipoc,duplicarProcesso,excluir,ler,registrarExportacao});
+  async function registrarExportacao(sub,formato){ const s=sess('consultar'); if(!s.ok) return s; await auditar('subprocesso',sub.id,'exportar','Formato','',formato); return {ok:true}; }
+  return Object.freeze({salvarProcesso,salvarSubprocesso,duplicarProcesso,excluir,ler,registrarExportacao});
 })();
 /* ====================================================================
    MAPA DE PROCESSO — interface
@@ -6752,7 +6761,7 @@ function viewMapa(C,args){
 function viewMpInicio(C){
   const st=mpState;
   if(st.proc&&!mpProc(st.proc)) st.proc=''; if(st.sub&&!mpSub(st.sub)) st.sub='';
-  C.append(el('div',{class:'toolbar'},el('div',{class:'mut'},'Estrutura: Empresa → Unidade de Negócio → Processo → SIPOC (subprocessos opcionais)'),el('div',{style:'flex:1'}),
+  C.append(el('div',{class:'toolbar'},el('div',{class:'mut'},'Estrutura: Empresa → Unidade de Negócio → Processo → Subprocesso → Mapa SIPOC'),el('div',{style:'flex:1'}),
     mpPode('criar')?el('button',{class:'btn pri',onclick:()=>mpProcessoModal(null)},'＋ Novo processo'):''));
   C.append(el('div',{class:'cards'},...mpIndicadores().map(k=>el('div',{class:'kpi',style:'cursor:default'},el('div',{class:'bar',style:`background:${k.c}`}),
     el('div',{class:'n',style:`color:${k.c};font-size:22px`},String(k.n)),el('div',{class:'l'},k.l)))));
@@ -6787,13 +6796,12 @@ function viewMpInicio(C){
     const pag=rows.slice((st.pag-1)*MP_POR_PAG,st.pag*MP_POR_PAG);
     if(!total){ holder.append(el('div',{class:'empty'},el('div',{class:'big'},mpProcs().length?'Nenhum processo encontrado':'Nenhum processo cadastrado'),
       mpProcs().length?'Ajuste os filtros ou a pesquisa.':(mpPode('criar')?'Use "＋ Novo processo" para começar o mapeamento.':'Ainda não há processos mapeados.'))); return; }
-    const t=el('table',{id:'mpTabela'}); t.innerHTML='<thead><tr><th>Unidade de Negócio</th><th>Processo</th><th>SIPOC</th><th>Subprocessos</th><th>Responsável</th><th>Status</th><th>Última atualização</th><th>Versão</th><th class="right">Ações</th></tr></thead>';
+    const t=el('table',{id:'mpTabela'}); t.innerHTML='<thead><tr><th>Unidade de Negócio</th><th>Processo</th><th>Subprocessos</th><th>Responsável</th><th>Status</th><th>Última atualização</th><th>Versão</th><th class="right">Ações</th></tr></thead>';
     const tb=el('tbody');
     pag.forEach(p=>{ const subs=mpSubsDe(p.id), ach=achadosSub[p.id];
       tb.append(el('tr',{'data-proc':p.id,onclick:()=>location.hash='#/mapa/p/'+p.id},
         el('td',{},mpSetorNome(p.setorId)),
         el('td',{style:'white-space:normal;min-width:220px'},el('b',{class:'mono'},p.codigo),' — ',p.nome),
-        el('td',{html:`<b>${mpSipocsDe(p).length}</b>`}),
         el('td',{style:'white-space:normal;min-width:160px',html:`<b>${subs.length}</b>`+(ach?`<br><span class="mut" style="font-size:11.5px">encontrado em: ${ach.map(s=>esc(s.nome)).join(', ')}</span>`:'')}),
         el('td',{},mpNomeU(p.responsavelId)),el('td',{html:mpStatusTag(p.status)}),el('td',{},fmtDT(p.atualizadoEm)),el('td',{html:`<b>${pad2(p.versao)}</b>`}),
         el('td',{class:'right',style:'white-space:nowrap',onclick:e=>e.stopPropagation()},
@@ -6822,75 +6830,61 @@ function viewMpProcesso(C,id){
     mpPode('criar')?el('button',{class:'btn sm',onclick:()=>mpDuplicar(p)},'📋 Duplicar'):'',
     el('button',{class:'btn sm',onclick:()=>mpHistoricoModal('processo',p.id)},'🕘 Histórico e versões'),
     mpPode('excluir')?el('button',{class:'btn sm dng',onclick:()=>mpExcluir('processo',p)},'🗑 Excluir'):'',
-    mpPode('criar')&&!desc?el('button',{class:'btn sm',onclick:()=>mpSubprocessoModal(p,null)},'＋ Subprocesso (opcional)'):'',
-    mpPode('criar')&&!desc?el('button',{class:'btn sm pri',id:'mpNovoSipoc',onclick:()=>mpSipocModal(p,null,null)},'＋ Cadastrar SIPOC'):''));
+    mpPode('criar')&&!desc?el('button',{class:'btn sm pri',onclick:()=>mpSubprocessoModal(p,null)},'＋ Adicionar subprocesso'):''));
   if(desc) C.append(el('div',{class:'lockbox'},'Processo descontinuado — mantido para consulta histórica.'));
   C.append(el('div',{class:'panel'},el('h3',{},'Processo',el('span',{html:mpStatusTag(p.status)})),el('div',{class:'bd'},dlist([
-    ['Unidade de Negócio',esc(mpSetorNome(p.setorId))],['Código do processo',`<span class="mono">${esc(p.codigo)}</span>`],['Nome do processo',esc(p.nome)],
+    ['Unidade de Negócio',esc(mpSetorNome(p.setorId))],['Código',`<span class="mono">${esc(p.codigo)}</span>`],['Nome do processo',esc(p.nome)],
     ['Objetivo do processo',esc(p.objetivo)],['Responsável pelo processo',esc(mpNomeU(p.responsavelId))],
     ['Versão',`<b>${pad2(p.versao)}</b>`],['Última atualização',`${fmtDT(p.atualizadoEm)} — ${esc(p.atualizadoPor||'')}`],['Observações',esc(p.observacoes)]]))));
-  C.append(mpPainelSipoc(p,null));   // SIPOC vinculado diretamente ao processo (não exige subprocesso)
-  const t=el('table'); t.innerHTML='<thead><tr><th>Código</th><th>Subprocesso</th><th>Responsável</th><th>Status</th><th>Versão</th><th>SIPOC</th><th>Atualização</th><th class="right">Ações</th></tr></thead>';
+  const t=el('table'); t.innerHTML='<thead><tr><th>Código</th><th>Subprocesso</th><th>Responsável</th><th>Status</th><th>Versão</th><th>S · I · P · O · C</th><th>Atualização</th><th class="right">Ações</th></tr></thead>';
   const tb=el('tbody');
-  subs.forEach(s=>{ const sd=s.status==='Descontinuado';
+  subs.forEach(s=>{ const cont=MP_CAT.map(c=>(s.sipoc?.[c.k]||[]).length).join(' · '), sd=s.status==='Descontinuado';
     tb.append(el('tr',{'data-sub':s.id,onclick:()=>location.hash='#/mapa/s/'+s.id},el('td',{class:'mono'},s.codigo),el('td',{style:'white-space:normal;min-width:200px'},s.nome),
-      el('td',{},mpNomeU(s.responsavelId)),el('td',{html:mpStatusTag(s.status)}),el('td',{html:`<b>${pad2(s.versao)}</b>`}),el('td',{html:`<b>${mpSipocsDe(s).length}</b>`}),el('td',{},fmtDT(s.atualizadoEm)),
+      el('td',{},mpNomeU(s.responsavelId)),el('td',{html:mpStatusTag(s.status)}),el('td',{html:`<b>${pad2(s.versao)}</b>`}),el('td',{class:'mono'},cont),el('td',{},fmtDT(s.atualizadoEm)),
       el('td',{class:'right',style:'white-space:nowrap',onclick:e=>e.stopPropagation()},
-        el('button',{class:'btn sm',title:'Abrir subprocesso e seu SIPOC',onclick:()=>location.hash='#/mapa/s/'+s.id},'👁 Abrir'),
+        el('button',{class:'btn sm',title:'Visualizar mapa SIPOC',onclick:()=>location.hash='#/mapa/s/'+s.id},'👁 Mapa'),
         mpPode('editar')&&(!sd||mpPode('aprovar'))?el('button',{class:'btn sm',title:'Editar dados do subprocesso',onclick:()=>mpSubprocessoModal(p,s)},'✏'):'',
-        mpPode('criar')&&!sd&&!desc?el('button',{class:'btn sm',title:'Cadastrar SIPOC do subprocesso',onclick:()=>mpSipocModal(p,s,null)},'＋ SIPOC'):'',
+        mpPode('editar')&&!sd?el('button',{class:'btn sm',title:'Editar mapa SIPOC',onclick:()=>location.hash='#/mapa/e/'+s.id},'🧩 SIPOC'):'',
         el('button',{class:'btn sm',title:'Histórico e versões',onclick:()=>mpHistoricoModal('subprocesso',s.id)},'🕘'),
         mpPode('excluir')?el('button',{class:'btn sm dng',title:'Excluir',onclick:()=>mpExcluir('subprocesso',s)},'🗑'):''))); });
   t.append(tb);
-  C.append(el('div',{class:'panel',style:'margin-top:18px'},el('h3',{},`Subprocessos (${subs.length}) — opcionais`),el('div',{class:'bd'},
-    subs.length?el('div',{class:'tablewrap',style:'box-shadow:none'},t):el('div',{class:'mut'},'Nenhum subprocesso cadastrado. Subprocessos são opcionais: o SIPOC pode ser cadastrado diretamente no processo.'))));
+  C.append(el('div',{class:'panel',style:'margin-top:18px'},el('h3',{},`Subprocessos (${subs.length})`),el('div',{class:'bd'},
+    subs.length?el('div',{class:'tablewrap',style:'box-shadow:none'},t):el('div',{class:'mut'},'Nenhum subprocesso cadastrado.'+(mpPode('criar')&&!desc?' Use "＋ Adicionar subprocesso".':'')))));
   if(typeof grPainelRiscos==='function') C.append(grPainelRiscos(p.id,null));   // integração Gestão de Risco
-  /* fluxo Cadastrar Processo → Salvar → SIPOC: logo após o cadastro, o SIPOC do processo é aberto já vinculado */
-  if(mpState.abrirSipoc===p.id){ mpState.abrirSipoc=''; if(mpPode('criar')&&!desc) setTimeout(()=>mpSipocModal(p,null,null),0); }
 }
 
-/* ---------- SIPOC: tabela (uma linha por SIPOC) + painel ---------- */
-function mpTabelaSipoc(linhas,o={}){
-  if(!linhas.length) return el('div',{class:'mut'},o.vazio||'Nenhum SIPOC cadastrado.');
-  const t=el('table',{class:'mp-sipoc-tbl'});
-  t.innerHTML='<thead><tr><th>#</th>'+MP_SIPOC.map(c=>`<th class="${c.k==='etapa'?'p':''}"><b>${c.l}</b>${c.t}</th>`).join('')+(o.acoes?'<th class="right">Ações</th>':'')+'</tr></thead>';
-  const tb=el('tbody');
-  linhas.forEach((l,ix)=>{ const tr=el('tr',{'data-sipoc':l.id},el('td',{class:'no'},String(ix+1)),...MP_SIPOC.map(c=>el('td',{'data-c':c.k},mpSipocCelula(l,c))));
-    if(o.acoes) tr.append(el('td',{class:'right',style:'white-space:nowrap'},o.acoes(l)));
-    tb.append(tr); });
-  t.append(tb); return el('div',{class:'tablewrap',style:'box-shadow:none'},t); }
-function mpPainelSipoc(p,sub){
-  const dono=sub||p, bloq=p.status==='Descontinuado'||(sub&&sub.status==='Descontinuado'), ent=sub?'subprocesso':'processo';
-  const podeEd=mpPode('editar')&&!bloq;
-  const tab=mpTabelaSipoc(mpSipocsDe(dono),{vazio:mpPode('criar')&&!bloq?'Nenhum SIPOC cadastrado. Use "＋ Cadastrar SIPOC".':'Nenhum SIPOC cadastrado.',
-    acoes:podeEd?l=>[el('button',{class:'btn sm',title:'Editar SIPOC',onclick:()=>mpSipocModal(p,sub,l)},'✏'),
-      el('button',{class:'btn sm dng',title:'Excluir SIPOC',onclick:()=>mpExcluirSipoc(p,sub,l)},'🗑')]:null});
-  const titulo=sub?`SIPOC do subprocesso (${mpSipocsDe(dono).length})`:`SIPOC do processo (${mpSipocsDe(dono).length})`;
-  return el('div',{class:'panel',style:'margin-top:18px',id:'mpPainelSipoc'},
-    el('h3',{},el('span',{},titulo,' ',el('span',{class:'tag',style:'background:#F6CF2B;color:#2F2C83;letter-spacing:.12em'},'SIPOC')),
-      el('span',{style:'display:flex;gap:6px;flex-wrap:wrap'},
-        el('button',{class:'btn sm',onclick:()=>mpImprimir(dono,ent)},'🖨 Imprimir / PDF'),
-        el('button',{class:'btn sm',onclick:()=>mpExportarExcel(dono,ent)},'⭳ Excel'),
-        mpPode('criar')&&!bloq?el('button',{class:'btn sm pri',onclick:()=>mpSipocModal(p,sub,null)},'＋ Cadastrar SIPOC'):'')),
-    el('div',{class:'bd'},tab)); }
-
-/* ---------- subprocesso (opcional): dados + SIPOC do subprocesso; também usado para versões anteriores ---------- */
-/* linhas de SIPOC de um registro; snapshots anteriores à mudança (sem sipocs[]) são convertidos só para exibição */
-function mpLinhasSipoc(r){ return Array.isArray(r?.sipocs)?mpSipocsDe(r):mpConverterSipocLegado(r?.sipoc,n=>mpUsuarioPorNome(n,r?.empresaId)); }
+/* ---------- mapa SIPOC (visualização; também usada para versões anteriores) ---------- */
 function mpRenderMapa(s,o={}){
   const snap=!!o.snapshot, p=o.processo||mpProc(s.processoId)||{};
+  // versões registradas enquanto o SIPOC era gravado em linhas: exibidas neste formato
+  const x=(!mpTemSipoc(s)&&Array.isArray(s.sipocs)&&s.sipocs.length)?mpLinhasParaSipoc(s.sipocs,null):(s.sipoc||mpSipocVazio());
   const w=el('div',{class:'mp-mapa'});
   if(o.acoes&&!snap) w.append(el('div',{class:'toolbar'},el('div',{style:'flex:1'}),
+    mpPode('editar')&&s.status!=='Descontinuado'?el('button',{class:'btn sm pri',onclick:()=>location.hash='#/mapa/e/'+s.id},'🧩 Editar SIPOC'):'',
     mpPode('editar')&&(s.status!=='Descontinuado'||mpPode('aprovar'))?el('button',{class:'btn sm',onclick:()=>mpSubprocessoModal(p,s)},'✏ Dados do subprocesso'):'',
-    mpPode('editar')&&s.status!=='Descontinuado'?el('button',{class:'btn sm',onclick:()=>location.hash='#/mapa/e/'+s.id},'🧩 Informações complementares'):'',
+    el('button',{class:'btn sm',onclick:()=>mpImprimir(s)},'🖨 Imprimir / PDF'),
+    el('button',{class:'btn sm',onclick:()=>mpExportarExcel(s)},'⭳ Excel'),
     el('button',{class:'btn sm',onclick:()=>mpHistoricoModal('subprocesso',s.id)},'🕘 Histórico e versões')));
   const cab=[['Unidade de Negócio',mpSetorNome(p.setorId)],['Processo',p.codigo?`${p.codigo} — ${p.nome}`:(p.nome||'—')],['Subprocesso',`${s.codigo} — ${s.nome}`],
     ['Responsável',mpNomeU(s.responsavelId||p.responsavelId)],['Versão',pad2(s.versao)],['Status',null]];
-  w.append(el('div',{class:'panel'},el('h3',{},'SUBPROCESSO',
+  w.append(el('div',{class:'panel'},el('h3',{},'MAPA DE PROCESSO',el('span',{class:'tag',style:'background:#F6CF2B;color:#2F2C83;letter-spacing:.12em'},'SIPOC'),
       snap?el('span',{class:'tag',style:'background:#6B72801f;color:#6B7280'},`versão ${pad2(s.versao)} — registro histórico`):''),
     el('div',{class:'bd'},el('div',{class:'mp-cab'},...cab.map(([k,v])=>el('div',{},el('small',{},k),k==='Status'?el('span',{html:mpStatusTag(s.status)}):el('b',{},v)))),
-      s.status==='Descontinuado'?el('div',{class:'lockbox',style:'margin:0'},'Subprocesso descontinuado — mantido para consulta histórica.'):'')));
-  w.append(snap?panel('SIPOC',mpTabelaSipoc(mpLinhasSipoc(s))):mpPainelSipoc(p,s));
+      s.status==='Descontinuado'?el('div',{class:'lockbox',style:'margin:0 0 12px'},'Subprocesso descontinuado — mapa mantido para consulta histórica.'):'',
+      (()=>{ const g=el('div',{class:'sipoc'});
+        MP_CAT.forEach(c=>{ const col=el('div',{class:'sc'},el('div',{class:'sh'+(c.k==='etapas'?' p':'')},el('b',{},c.l),el('span',{},c.t)));
+          const it=x[c.k]||[];
+          if(!it.length) col.append(el('div',{class:'vz'},'—'));
+          it.forEach(i=>col.append(el('div',{class:'si'},c.k==='etapas'?el('span',{class:'no'},String(i.ordem)):'',el('b',{},i.nome),i.tipo?el('span',{class:'tp'},i.tipo):'',
+            i.descricao?el('small',{},i.descricao):'',i.origem?el('small',{},'Origem: '+i.origem):'',i.destino?el('small',{},'Destino: '+i.destino):'',
+            i.responsavelId?el('small',{},'Responsável: '+mpNomeU(i.responsavelId)):'',i.obs?el('small',{},'Obs.: '+i.obs):'')));
+          g.append(col); });
+        return g; })())));
+  // rastreabilidade
+  if((x.vinculos||[]).length){ const nomeDe=(cat,id)=>(x[cat]||[]).find(i=>i.id===id)?.nome||'—';
+    const t=el('table',{class:'rep-tbl'}); t.innerHTML='<thead><tr>'+MP_VINC.map(v=>`<th>${v[2]}</th>`).join('')+'</tr></thead>';
+    const tb=el('tbody'); x.vinculos.forEach(v=>tb.append(el('tr',{style:'cursor:default'},...MP_VINC.map(([f,cat])=>el('td',{style:'white-space:normal'},v[f]?nomeDe(cat,v[f]):'—'))))); t.append(tb);
+    w.append(panel('Rastreabilidade SIPOC (Fornecedor → Entrada → Etapa → Saída → Cliente)',el('div',{class:'tablewrap',style:'box-shadow:none'},t))); }
   // informações complementares
   const comp=s.comp||{}, docs=(s.documentosIds||[]).map(docById).filter(Boolean);
   const lista=arr=>arr&&arr.length?el('ul',{},...arr.map(v=>el('li',{},v))):el('div',{class:'mut'},'Não informado.');
@@ -6899,7 +6893,7 @@ function mpRenderMapa(s,o={}){
         vis&&vig&&!snap?el('a',{href:'javascript:void 0',onclick:()=>DocumentoAPI.visualizarPublicado(d.id)},'👁 visualizar'):el('span',{class:'mut'},vis?'':'(acesso restrito)')); }))
     :el('div',{class:'mut'},'Nenhum documento relacionado.');
   w.append(panel('Informações complementares',el('div',{class:'mp-comp'},
-    el('div',{},el('div',{class:'sec-title'},'OBJETIVO'),el('div',{},s.objetivo||p.objetivo||el('span',{class:'mut'},'Não informado.'))),
+    el('div',{},el('div',{class:'sec-title'},'OBJETIVO DO PROCESSO'),el('div',{},s.objetivo||p.objetivo||el('span',{class:'mut'},'Não informado.'))),
     el('div',{},el('div',{class:'sec-title'},'RESPONSÁVEL'),el('div',{},mpNomeU(s.responsavelId||p.responsavelId))),
     ...MP_COMP.map(([k,l])=>el('div',{},el('div',{class:'sec-title'},l),lista(comp[k]))),
     el('div',{},el('div',{class:'sec-title'},'DOCUMENTOS RELACIONADOS'),docEl))));
@@ -6907,25 +6901,62 @@ function mpRenderMapa(s,o={}){
   return w;
 }
 function viewMpMapa(C,id){
-  const r=MapaAPI.ler('subprocesso',id); if(!r.ok){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Subprocesso indisponível'),r.msg)); return; }
+  const r=MapaAPI.ler('subprocesso',id); if(!r.ok){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Mapa indisponível'),r.msg)); return; }
   const s=r.rec, p=mpProc(s.processoId);
-  $('#pageTitle').textContent='Subprocesso — '+s.nome; $('#pageSub').textContent=`${p?.codigo||''} ${p?.nome||''} · ${mpSetorNome(p?.setorId)}`;
+  $('#pageTitle').textContent='Mapa de Processo — '+s.nome; $('#pageSub').textContent=`${p?.codigo||''} ${p?.nome||''} · ${mpSetorNome(p?.setorId)}`;
   C.append(el('div',{class:'toolbar'},el('button',{class:'btn sm',onclick:()=>location.hash='#/mapa/p/'+s.processoId},'← Processo')));
   C.append(mpRenderMapa(s,{acoes:true}));
 }
 
-/* ---------- informações complementares do subprocesso (indicadores, sistemas, riscos e documentos) ---------- */
+/* ---------- editor do SIPOC ---------- */
 function viewMpEditor(C,id){
   const s=mpSub(id);
-  if(!s||!mpPode('editar')){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Acesso não autorizado'),'Seu perfil no Mapa de Processo não permite editar este subprocesso.')); return; }
-  if(s.status==='Descontinuado'){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Subprocesso descontinuado'),'Reative o subprocesso (Gestor/Administrador) para editá-lo.')); return; }
+  if(!s||!mpPode('editar')){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Acesso não autorizado'),'Seu perfil no Mapa de Processo não permite editar o SIPOC.')); return; }
+  if(s.status==='Descontinuado'){ C.append(el('div',{class:'empty'},el('div',{class:'big'},'Subprocesso descontinuado'),'Reative o subprocesso (Gestor/Administrador) para editar o mapa.')); return; }
   const p=mpProc(s.processoId);
-  $('#pageTitle').textContent='Informações complementares — '+s.nome; $('#pageSub').textContent=`${p?.codigo||''} ${p?.nome||''} · versão ${pad2(s.versao)}`;
-  const W={comp:JSON.parse(JSON.stringify(s.comp||{})),documentosIds:[...(s.documentosIds||[])]};
-  const wrap=el('div');
-  C.append(el('div',{class:'toolbar'},el('button',{class:'btn sm',onclick:()=>location.hash='#/mapa/s/'+s.id},'← Subprocesso')));
-  if(MP_STATUS_VERSIONA.includes(s.status)) C.append(el('div',{class:'warnbox'},`Subprocesso ${s.status}: ao salvar, será gerada a versão ${pad2((s.versao||1)+1)} (com descrição da alteração e justificativa). A versão atual fica preservada.`));
+  $('#pageTitle').textContent='Editar SIPOC — '+s.nome; $('#pageSub').textContent=`${p?.codigo||''} ${p?.nome||''} · versão ${pad2(s.versao)}`;
+  const W={sipoc:JSON.parse(JSON.stringify(s.sipoc||mpSipocVazio())),comp:JSON.parse(JSON.stringify(s.comp||{})),documentosIds:[...(s.documentosIds||[])]};
+  MP_CAT.forEach(c=>{ if(!Array.isArray(W.sipoc[c.k])) W.sipoc[c.k]=[]; }); if(!Array.isArray(W.sipoc.vinculos)) W.sipoc.vinculos=[];
+  const wrap=el('div',{class:'mp-ed'});
+  C.append(el('div',{class:'toolbar'},el('button',{class:'btn sm',onclick:()=>location.hash='#/mapa/s/'+s.id},'← Mapa'),el('div',{style:'flex:1'}),
+    el('span',{class:'mut'},'SIPOC em nível macro: registre as principais etapas, não um fluxograma detalhado.')));
+  if(MP_STATUS_VERSIONA.includes(s.status)) C.append(el('div',{class:'warnbox'},`Mapa ${s.status}: ao salvar, será gerada a versão ${pad2((s.versao||1)+1)} (com descrição da alteração e justificativa). A versão atual fica preservada.`));
   C.append(wrap);
+  const usuarios=mpUsuarioOpts();
+  const vincBox=el('div');
+  function campo(c,i,[f,l,req,opts]){
+    if(opts){ const lst=opts==='usuarios'?usuarios:opts.map(v=>[v,v]);
+      const sl=el('select',{'aria-label':l,onchange:e=>{ i[f]=e.target.value; }},el('option',{value:''},opts==='usuarios'?'—':'Selecione…'),...lst.map(([v,t])=>el('option',{value:v},t))); sl.value=i[f]||''; return sl; }
+    return el('input',{type:'text','aria-label':l,value:i[f]||'',placeholder:req?l+' *':l,oninput:e=>{ i[f]=e.target.value; },onchange:()=>{ if(f==='nome') renderVinc(); }}); }
+  function secao(c){
+    const box=el('div',{class:'panel',style:'margin-bottom:16px','data-cat':c.k});
+    const body=el('div',{class:'bd'});
+    box.append(el('h3',{},el('span',{class:'sec'},el('b',{class:'l'},c.l),c.t),el('span',{class:'mut',style:'font-weight:400'},`(${W.sipoc[c.k].length})`)),body);
+    const lst=W.sipoc[c.k];
+    if(lst.length){ const t=el('table'); t.innerHTML='<thead><tr>'+(c.k==='etapas'?'<th>Ordem</th>':'')+c.campos.map(([,l,req])=>`<th>${l}${req?' *':''}</th>`).join('')+'<th></th></tr></thead>';
+      const tb=el('tbody'); lst.forEach((i,ix)=>{ const tr=el('tr',{style:'cursor:default'});
+        if(c.k==='etapas') tr.append(el('td',{},el('b',{},String(ix+1))));
+        c.campos.forEach(cp=>tr.append(el('td',{},campo(c,i,cp))));
+        tr.append(el('td',{style:'white-space:nowrap'},
+          c.k==='etapas'?el('button',{class:'btn sm',type:'button',title:'Mover para cima',disabled:ix===0?'disabled':null,onclick:()=>{ [lst[ix-1],lst[ix]]=[lst[ix],lst[ix-1]]; render(); }},'↑'):'',
+          c.k==='etapas'?el('button',{class:'btn sm',type:'button',title:'Mover para baixo',disabled:ix===lst.length-1?'disabled':null,onclick:()=>{ [lst[ix+1],lst[ix]]=[lst[ix],lst[ix+1]]; render(); }},'↓'):'',
+          el('button',{class:'btn sm dng',type:'button',title:'Excluir item',onclick:()=>{ lst.splice(ix,1);
+            W.sipoc.vinculos.forEach(v=>MP_VINC.forEach(([f,cat])=>{ if(cat===c.k&&v[f]===i.id) v[f]=''; })); render(); }},'🗑')));
+        tb.append(tr); });
+      t.append(tb); body.append(el('div',{class:'tablewrap',style:'box-shadow:none'},t)); }
+    else body.append(el('div',{class:'mut',style:'margin-bottom:8px'},`Nenhum(a) ${c.item.toLowerCase()} cadastrado(a).`));
+    body.append(el('button',{class:'btn sm',type:'button',style:'margin-top:10px',onclick:()=>{ const n={id:uid()}; c.campos.forEach(([f])=>n[f]=''); lst.push(n); render();
+      setTimeout(()=>{ const ins=$$(`[data-cat="${c.k}"] tbody tr`); ins[ins.length-1]?.querySelector('input')?.focus(); },0); }},`＋ Adicionar ${c.item.toLowerCase()}`));
+    return box; }
+  function renderVinc(){ vincBox.innerHTML='';
+    const t=el('table'); t.innerHTML='<thead><tr>'+MP_VINC.map(v=>`<th>${v[2]}</th>`).join('')+'<th></th></tr></thead>'; const tb=el('tbody');
+    W.sipoc.vinculos.forEach((v,ix)=>{ const tr=el('tr',{style:'cursor:default'});
+      MP_VINC.forEach(([f,cat])=>{ const sl=el('select',{onchange:e=>{ v[f]=e.target.value; }},el('option',{value:''},'—'),...W.sipoc[cat].filter(i=>i.nome).map(i=>el('option',{value:i.id},(cat==='etapas'?(W.sipoc.etapas.indexOf(i)+1)+'. ':'')+i.nome)));
+        sl.value=v[f]||''; tr.append(el('td',{},sl)); });
+      tr.append(el('td',{},el('button',{class:'btn sm dng',type:'button',onclick:()=>{ W.sipoc.vinculos.splice(ix,1); renderVinc(); }},'🗑'))); tb.append(tr); });
+    t.append(tb);
+    vincBox.append(W.sipoc.vinculos.length?el('div',{class:'tablewrap',style:'box-shadow:none'},t):el('div',{class:'mut'},'Nenhuma ligação cadastrada.'),
+      el('button',{class:'btn sm',type:'button',style:'margin-top:10px',onclick:()=>{ W.sipoc.vinculos.push({id:uid(),fornecedorId:'',entradaId:'',etapaId:'',saidaId:'',clienteId:''}); renderVinc(); }},'＋ Adicionar ligação')); }
   function docsBox(){
     const box=el('div'), chips=el('div',{class:'mp-chips',style:'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'});
     const rc=()=>{ chips.innerHTML=''; if(!W.documentosIds.length) chips.append(el('span',{class:'mut'},'Nenhum documento relacionado.'));
@@ -6936,42 +6967,15 @@ function viewMpEditor(C,id){
     rc(); box.append(chips,sel,el('div',{class:'hint'},'Documentos já cadastrados no portal (sem cópia de arquivos). A visualização respeita as permissões da Gestão de Documentos.')); return box; }
   function compBox(){ return el('div',{class:'mp-comp'},...MP_COMP.map(([k,l])=>el('div',{class:'fld'},el('label',{},l+' (um por linha)'),
     el('textarea',{rows:'4',oninput:e=>{ W.comp[k]=e.target.value.split('\n').map(v=>v.trim()).filter(Boolean); }},(W.comp[k]||[]).join('\n'))))); }
-  wrap.append(panel('Informações complementares',compBox()),panel('Documentos relacionados',docsBox()),
-    el('div',{class:'mp-savebar'},el('button',{class:'btn',onclick:()=>location.hash='#/mapa/s/'+s.id},'Cancelar'),
-      el('button',{class:'btn pri',id:'mpSalvarComp',onclick:()=>mpComVersao(ver=>MapaAPI.salvarSubprocesso({id:s.id,comp:W.comp,documentosIds:W.documentosIds},ver),
-        'Informações salvas.',()=>location.hash='#/mapa/s/'+s.id)},'💾 Salvar')));
+  function render(){ wrap.innerHTML=''; MP_CAT.forEach(c=>wrap.append(secao(c)));
+    renderVinc();
+    wrap.append(panel('Rastreabilidade SIPOC — Fornecedor → Entrada → Etapa → Saída → Cliente',vincBox),
+      panel('Informações complementares',compBox()),panel('Documentos relacionados',docsBox()),
+      el('div',{class:'mp-savebar'},el('button',{class:'btn',onclick:()=>location.hash='#/mapa/s/'+s.id},'Cancelar'),
+        el('button',{class:'btn pri',id:'mpSalvarSipoc',onclick:()=>mpComVersao(ver=>MapaAPI.salvarSubprocesso({id:s.id,sipoc:W.sipoc,comp:W.comp,documentosIds:W.documentosIds},ver),
+          'Mapa SIPOC salvo.',()=>location.hash='#/mapa/s/'+s.id)},'💾 Salvar mapa'))); }
+  render();
 }
-
-/* ---------- cadastro / edição do SIPOC (processo já vinculado; subprocesso opcional) ---------- */
-function mpSipocModal(p,sub,l){
-  const novo=!l; if(!p){ toast('Processo não encontrado.','err'); return; } if(!mpPode(novo?'criar':'editar')){ toast('Sem permissão.','err'); return; }
-  const opts=mpUsuarioOpts();
-  const selU=(id,c)=>{ const atual=l?.[c.k]||''; const lst=opts.slice();
-    if(atual&&!lst.some(([v])=>v===atual)) lst.unshift([atual,mpNomeU(atual)+' (inativo ou de outra empresa)']);   // vínculo existente continua exibido
-    const s=mpSel(id,lst,atual,()=>{},'Selecionar usuário…'); s.setAttribute('aria-label',c.rot); return s; };
-  const leg=c=>!l?.[c.k]&&l?.legado?.[c.usuario]?el('div',{class:'hint mp-leg'},`Registro anterior (texto livre): "${l.legado[c.usuario]}". Selecione o usuário correspondente.`):'';
-  const txtF=(id,c)=>el('input',{type:'text',id,maxlength:'500',value:l?.[c.k]||'','aria-label':c.rot});
-  const C=Object.fromEntries(MP_SIPOC.map(c=>[c.k,c]));
-  const form=el('div',{class:'form',id:'mpSipocForm'},
-    el('div',{class:'fld full'},el('label',{},'Processo'),el('div',{class:'rofld',id:'mpSiProc'},`${p.codigo} — ${p.nome}`+(sub?` · Subprocesso ${sub.codigo} — ${sub.nome}`:''))),
-    el('div',{class:'fld'},el('label',{html:'<b>S</b> — Fornecedor'}),selU('mpSiForn',C.fornecedorId),leg(C.fornecedorId),el('div',{class:'hint'},'Quem fornece a entrada para o processo.')),
-    el('div',{class:'fld'},el('label',{html:'<b>I</b> — Entrada'}),txtF('mpSiEnt',C.entrada),el('div',{class:'hint'},'O que entra no processo.')),
-    el('div',{class:'fld full'},el('label',{html:'<b>P</b> — Etapa / Processo'}),txtF('mpSiEtapa',C.etapa),el('div',{class:'hint'},'O que é executado ou transformado.')),
-    el('div',{class:'fld'},el('label',{html:'<b>O</b> — Saída'}),txtF('mpSiSai',C.saida),el('div',{class:'hint'},'Resultado produzido pelo processo.')),
-    el('div',{class:'fld'},el('label',{html:'<b>C</b> — Cliente'}),selU('mpSiCli',C.clienteId),leg(C.clienteId),el('div',{class:'hint'},'Quem recebe ou utiliza a saída.')));
-  const dados=()=>({id:l?.id,processoId:p.id,subprocessoId:sub?.id||null,fornecedorId:$('#mpSiForn').value,entrada:$('#mpSiEnt').value,
-    etapa:$('#mpSiEtapa').value,saida:$('#mpSiSai').value,clienteId:$('#mpSiCli').value});
-  const salvar=outro=>{ const d=dados();
-    mpComVersao(ver=>MapaAPI.salvarSipoc(d,ver),novo?'SIPOC cadastrado.':'SIPOC atualizado.',()=>{ closeModal(); route();
-      if(outro){ const pp=mpProc(p.id), ss=sub?mpSub(sub.id):null; setTimeout(()=>mpSipocModal(pp,ss,null),0); } }); };
-  const bts=[{t:'Cancelar',cls:'btn',fn:closeModal}];
-  if(novo) bts.push({t:'Salvar e cadastrar outro',cls:'btn',fn:()=>salvar(true)});
-  bts.push({t:'Salvar SIPOC',cls:'btn pri',fn:()=>salvar(false)});
-  openModal((novo?'Cadastrar SIPOC':'Editar SIPOC')+' — '+(sub?sub.nome:p.nome),form,bts,'wide');
-}
-function mpExcluirSipoc(p,sub,l){
-  confirmModal('Excluir SIPOC',`Excluir o SIPOC (${MP_SIPOC.map(c=>mpSipocTexto(l,c)||'—').join(' · ')})? A exclusão fica registrada no histórico.`,'Excluir',
-    async()=>{ let ok=false; await mpComVersao(ver=>MapaAPI.excluirSipoc({id:l.id,processoId:p.id,subprocessoId:sub?.id||null},ver),'SIPOC excluído.',()=>{ ok=true; route(); }); return ok?undefined:false; },null,'btn dng'); }
 
 /* ---------- formulários (modais) ---------- */
 function mpStatusSelect(id,atual){ const s=el('select',{id}); const gestor=mpPode('aprovar');
@@ -6987,16 +6991,14 @@ function mpProcessoModal(p){
     el('div',{class:'fld'},el('label',{},'Código do processo'),cod,el('div',{class:'hint'},'Vazio = gerado automaticamente ({SETOR}.MP.{000}, padrão de codificação do portal).')),
     el('div',{class:'fld full'},el('label',{html:'Nome do processo <span class="req">*</span>'}),el('input',{type:'text',id:'mpPNome',value:p?.nome||''})),
     el('div',{class:'fld full'},el('label',{},'Objetivo do processo'),el('textarea',{id:'mpPObj',rows:'2'},p?.objetivo||'')),
-    fld('Responsável pelo processo','',mpSel('mpPResp',mpUsuarioOpts(),p?.responsavelId,()=>{},'Selecionar usuário…')),
+    fld('Responsável pelo processo','',mpSel('mpPResp',mpUsuarioOpts(),p?.responsavelId,()=>{},'—')),
     fld('Status','',mpStatusSelect('mpPStatus',p?.status)),
     el('div',{class:'fld full'},el('label',{},'Observações'),el('textarea',{id:'mpPObs',rows:'2'},p?.observacoes||'')));
   openModal(novo?'Cadastro de processo':'Editar processo — '+p.codigo,form,[{t:'Cancelar',cls:'btn',fn:closeModal},
-    {t:novo?'Salvar processo':'Salvar',cls:'btn pri',fn:()=>{
+    {t:novo?'Cadastrar processo':'Salvar',cls:'btn pri',fn:()=>{
       const dados={id:p?.id,setorId:$('#mpPSetor').value,nome:$('#mpPNome').value,codigo:$('#mpPCod').value,objetivo:$('#mpPObj').value,
         responsavelId:$('#mpPResp').value,status:$('#mpPStatus').value,observacoes:$('#mpPObs').value};
-      /* Cadastrar → Salvar → SIPOC: o processo recém-criado abre já com o cadastro do SIPOC vinculado a ele */
-      mpComVersao(ver=>MapaAPI.salvarProcesso(dados,ver),novo?'Processo cadastrado. Cadastre agora o SIPOC do processo.':'Processo atualizado.',r=>{ closeModal();
-        if(novo){ mpState.abrirSipoc=r.rec.id; location.hash='#/mapa/p/'+r.rec.id; } else route(); }); }}],'wide');
+      mpComVersao(ver=>MapaAPI.salvarProcesso(dados,ver),novo?'Processo cadastrado.':'Processo atualizado.',r=>{ closeModal(); if(novo) location.hash='#/mapa/p/'+r.rec.id; else route(); }); }}],'wide');
 }
 function mpSubprocessoModal(p,s){
   const novo=!s; if(!p){ toast('Processo não encontrado.','err'); return; } if(!mpPode(novo?'criar':'editar')){ toast('Sem permissão.','err'); return; }
@@ -7009,10 +7011,10 @@ function mpSubprocessoModal(p,s){
     fld('Responsável','',mpSel('mpSResp',mpUsuarioOpts(),s?.responsavelId,()=>{},'—')),
     el('div',{class:'fld full'},el('label',{},'Observações'),el('textarea',{id:'mpSObs',rows:'2'},s?.observacoes||'')));
   openModal(novo?'Adicionar subprocesso':'Editar subprocesso — '+s.codigo,form,[{t:'Cancelar',cls:'btn',fn:closeModal},
-    {t:novo?'Adicionar subprocesso':'Salvar',cls:'btn pri',fn:()=>{
+    {t:novo?'Adicionar e montar o SIPOC':'Salvar',cls:'btn pri',fn:()=>{
       const dados={id:s?.id,processoId:p.id,nome:$('#mpSNome').value,codigo:$('#mpSCod').value,status:$('#mpSStatus').value,objetivo:$('#mpSObj').value,
         responsavelId:$('#mpSResp').value,observacoes:$('#mpSObs').value};
-      mpComVersao(ver=>MapaAPI.salvarSubprocesso(dados,ver),novo?'Subprocesso cadastrado.':'Subprocesso atualizado.',r=>{ closeModal(); if(novo) location.hash='#/mapa/s/'+r.rec.id; else route(); }); }}],'wide');
+      mpComVersao(ver=>MapaAPI.salvarSubprocesso(dados,ver),novo?'Subprocesso cadastrado.':'Subprocesso atualizado.',r=>{ closeModal(); if(novo) location.hash='#/mapa/e/'+r.rec.id; else route(); }); }}],'wide');
 }
 function mpDuplicar(p){ confirmModal('Duplicar processo',`Será criada uma cópia de "${p.codigo} — ${p.nome}" (com subprocessos e SIPOC), em elaboração, versão 01.`,'Duplicar',
   async()=>{ const r=await mpExec(()=>MapaAPI.duplicarProcesso(p.id),'Processo duplicado.'); if(!r.ok) return false; location.hash='#/mapa/p/'+r.rec.id; }); }
@@ -7042,62 +7044,67 @@ function mpHistoricoModal(ent,id){
 }
 function mpVerVersao(v){
   const body=v.entidade==='subprocesso'?mpRenderMapa(v.snapshot,{snapshot:true}):el('div',{},dlist([['Unidade de Negócio',esc(mpSetorNome(v.snapshot.setorId))],['Código',esc(v.snapshot.codigo)],['Nome',esc(v.snapshot.nome)],
-    ['Objetivo',esc(v.snapshot.objetivo)],['Responsável',esc(mpNomeU(v.snapshot.responsavelId))],['Status',mpStatusTag(v.snapshot.status)],['Versão',`<b>${pad2(v.versao)}</b>`],['Observações',esc(v.snapshot.observacoes)]]),
-    panel('SIPOC',mpTabelaSipoc(mpSipocsDe(v.snapshot))));
+    ['Objetivo',esc(v.snapshot.objetivo)],['Responsável',esc(mpNomeU(v.snapshot.responsavelId))],['Status',mpStatusTag(v.snapshot.status)],['Versão',`<b>${pad2(v.versao)}</b>`],['Observações',esc(v.snapshot.observacoes)]]));
   openModal(`Versão ${pad2(v.versao)} — ${fmtDT(v.data)} (${v.usuario})`,el('div',{},el('div',{class:'lockbox'},`Registro histórico (somente leitura). Alteração: ${v.alteracao||'—'} · Justificativa: ${v.justificativa||'—'}`),body),
     [{t:'Fechar',cls:'btn pri',fn:closeModal}],'wide');
 }
 
-/* ---------- impressão / PDF (janela de impressão do navegador → "Salvar como PDF") — SIPOC do processo ou do subprocesso ---------- */
-function mpHTMLImpressao(r,ent){
-  const sub=ent==='subprocesso'?r:null, p=sub?(mpProc(sub.processoId)||{}):r, e=esc, linhas=mpLinhasSipoc(r);
-  const docs=sub?(sub.documentosIds||[]).map(docById).filter(Boolean):[], comp=sub?.comp||{};
+/* ---------- impressão / PDF (janela de impressão do navegador → "Salvar como PDF") ---------- */
+function mpHTMLImpressao(s){
+  const p=mpProc(s.processoId)||{}, x=s.sipoc||mpSipocVazio(), e=esc, comp=s.comp||{};
+  const max=Math.max(1,...MP_CAT.map(c=>(x[c.k]||[]).length));
+  const cel=(c,i)=>{ const it=(x[c.k]||[])[i]; if(!it) return '<td></td>';
+    return `<td><b>${c.k==='etapas'?it.ordem+'. ':''}${e(it.nome)}</b>${it.tipo?` <i>(${e(it.tipo)})</i>`:''}${it.descricao?`<br><small>${e(it.descricao)}</small>`:''}${it.origem?`<br><small>Origem: ${e(it.origem)}</small>`:''}${it.destino?`<br><small>Destino: ${e(it.destino)}</small>`:''}${it.responsavelId?`<br><small>Resp.: ${e(mpNomeU(it.responsavelId))}</small>`:''}</td>`; };
+  const nomeDe=(cat,id)=>(x[cat]||[]).find(i=>i.id===id)?.nome||'—';
+  const docs=(s.documentosIds||[]).map(docById).filter(Boolean);
   const li=a=>a&&a.length?'<ul>'+a.map(v=>`<li>${e(v)}</li>`).join('')+'</ul>':'<p class="m">Não informado.</p>';
-  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Mapa de Processo — ${e(r.codigo)}</title><style>
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Mapa de Processo — ${e(s.codigo)}</title><style>
 @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#1F1E3A;font-size:11px;margin:0}
 h1{font-size:18px;color:#2F2C83;margin:0 0 2px}.bar{height:4px;background:#F6CF2B;margin:6px 0 10px}
 .cab{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 16px;margin-bottom:10px}.cab div small{display:block;color:#6B6B80;font-size:9px;text-transform:uppercase}
 table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px}th{background:#2F2C83;color:#fff;padding:6px;font-size:10.5px;text-align:left}
-th.p{background:#F6CF2B;color:#2F2C83}th.n{width:28px}td{border:1px solid #D9D9E6;padding:5px;vertical-align:top;word-wrap:break-word}td i{color:#6B6B80}
+th.p{background:#F6CF2B;color:#2F2C83}td{border:1px solid #D9D9E6;padding:5px;vertical-align:top;word-wrap:break-word}td small{color:#55546E}
 h2{font-size:12px;color:#2F2C83;margin:12px 0 4px;border-bottom:1px solid #D9D9E6;padding-bottom:2px}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 18px}
 ul{margin:2px 0 0 16px;padding:0}.m{color:#6B6B80;margin:2px 0}tr{page-break-inside:avoid}.rod{margin-top:10px;font-size:9px;color:#6B6B80}
 </style></head><body>
 <h1>MAPA DE PROCESSO <span style="font-size:11px;background:#F6CF2B;color:#2F2C83;padding:1px 8px;border-radius:8px;vertical-align:middle">SIPOC</span></h1><div class="bar"></div>
-<div class="cab"><div><small>Unidade de Negócio</small><b>${e(mpSetorNome(p.setorId))}</b></div><div><small>Processo</small><b>${e(p.codigo)} — ${e(p.nome)}</b></div>${sub?`<div><small>Subprocesso</small><b>${e(sub.codigo)} — ${e(sub.nome)}</b></div>`:''}
-<div><small>Responsável</small><b>${e(mpNomeU(r.responsavelId||p.responsavelId))}</b></div><div><small>Versão</small><b>${pad2(r.versao)}</b></div><div><small>Status</small><b>${e(r.status)}</b></div></div>
-${!sub&&p.objetivo?`<p><b>Objetivo do processo:</b> ${e(p.objetivo)}</p>`:''}
-<table><thead><tr><th class="n">#</th>${MP_SIPOC.map(c=>`<th class="${c.k==='etapa'?'p':''}">${c.l} — ${c.t}</th>`).join('')}</tr></thead><tbody>
-${linhas.length?linhas.map((l,i)=>`<tr><td>${i+1}</td>${MP_SIPOC.map(c=>{ const v=mpSipocTexto(l,c); return `<td>${c.usuario&&!l[c.k]&&v?`<i>${e(v)} (registro anterior)</i>`:e(v||'—')}</td>`; }).join('')}</tr>`).join('')
-  :`<tr><td colspan="6" class="m">Nenhum SIPOC cadastrado.</td></tr>`}</tbody></table>
-${sub?`<h2>Informações complementares</h2><div class="g"><div><b>OBJETIVO</b><p>${e(sub.objetivo||p.objetivo||'Não informado.')}</p></div>
-${MP_COMP.map(([k,l])=>`<div><b>${l}</b>${li(comp[k])}</div>`).join('')}<div><b>DOCUMENTOS RELACIONADOS</b>${li(docs.map(d=>`${d.codigo} — ${d.titulo}`))}</div></div>`:''}
+<div class="cab"><div><small>Unidade de Negócio</small><b>${e(mpSetorNome(p.setorId))}</b></div><div><small>Processo</small><b>${e(p.codigo)} — ${e(p.nome)}</b></div><div><small>Subprocesso</small><b>${e(s.codigo)} — ${e(s.nome)}</b></div>
+<div><small>Responsável</small><b>${e(mpNomeU(s.responsavelId||p.responsavelId))}</b></div><div><small>Versão</small><b>${pad2(s.versao)}</b></div><div><small>Status</small><b>${e(s.status)}</b></div></div>
+<table><thead><tr>${MP_CAT.map(c=>`<th class="${c.k==='etapas'?'p':''}">${c.l} — ${c.t}</th>`).join('')}</tr></thead><tbody>
+${Array.from({length:max},(_,i)=>`<tr>${MP_CAT.map(c=>cel(c,i)).join('')}</tr>`).join('')}</tbody></table>
+${(x.vinculos||[]).length?`<h2>Rastreabilidade SIPOC</h2><table><thead><tr>${MP_VINC.map(v=>`<th>${v[2]}</th>`).join('')}</tr></thead><tbody>${x.vinculos.map(v=>`<tr>${MP_VINC.map(([f,cat])=>`<td>${e(v[f]?nomeDe(cat,v[f]):'—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`:''}
+<h2>Informações complementares</h2><div class="g"><div><b>OBJETIVO DO PROCESSO</b><p>${e(s.objetivo||p.objetivo||'Não informado.')}</p></div><div><b>RESPONSÁVEL</b><p>${e(mpNomeU(s.responsavelId||p.responsavelId))}</p></div>
+${MP_COMP.map(([k,l])=>`<div><b>${l}</b>${li(comp[k])}</div>`).join('')}<div><b>DOCUMENTOS RELACIONADOS</b>${li(docs.map(d=>`${d.codigo} — ${d.titulo}`))}</div></div>
 <div class="rod">Portal de Gestão · Grupo Setta — impresso em ${e(fmtDT(nowISO()))} por ${e(SESSION.user?.nome||'')}. Documento de consulta; a versão vigente está no sistema.</div>
 </body></html>`;
 }
-function mpImprimir(r,ent){
+function mpImprimir(s){
   if(!mpPode('consultar')){ toast('Sem permissão.','err'); return; }
   const f=el('iframe',{style:'position:fixed;right:0;bottom:0;width:0;height:0;border:0',title:'Impressão do mapa'});
-  document.body.append(f); f.srcdoc=mpHTMLImpressao(r,ent);
+  document.body.append(f); f.srcdoc=mpHTMLImpressao(s);
   f.onload=()=>{ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('Não foi possível abrir a impressão.','err'); } setTimeout(()=>f.remove(),60000); };
-  MapaAPI.registrarExportacao(ent,r,'Impressão / PDF').catch(()=>{});
+  MapaAPI.registrarExportacao(s,'Impressão / PDF').catch(()=>{});
 }
 /* ---------- Excel (SheetJS já embutido no portal) ---------- */
-function mpLinhasExcel(r,ent){
-  const sub=ent==='subprocesso'?r:null, p=sub?(mpProc(sub.processoId)||{}):r;
-  const cab=[['MAPA DE PROCESSO — SIPOC'],[],['Unidade de Negócio',mpSetorNome(p.setorId)],['Processo',`${p.codigo} — ${p.nome}`],...(sub?[['Subprocesso',`${sub.codigo} — ${sub.nome}`]]:[]),
-    ['Responsável',mpNomeU(r.responsavelId||p.responsavelId)],['Versão',pad2(r.versao)],['Status',r.status],['Objetivo',r.objetivo||p.objetivo||''],['Exportado em',fmtDT(nowISO())]];
-  const sipoc=[['#',...MP_SIPOC.map(c=>c.rot)],...mpLinhasSipoc(r).map((l,i)=>[i+1,...MP_SIPOC.map(c=>{ const v=mpSipocTexto(l,c); return c.usuario&&!l[c.k]&&v?v+' (registro anterior)':v; })])];
-  const compl=sub?[['Informação','Valor'],...MP_COMP.flatMap(([k,l])=>(sub.comp?.[k]||[]).map(v=>[l,v])),
-    ...(sub.documentosIds||[]).map(docById).filter(Boolean).map(d=>['DOCUMENTOS RELACIONADOS',`${d.codigo} — ${d.titulo}`])]:null;
-  return {cab,sipoc,compl}; }
-function mpExportarExcel(r,ent){
+function mpExportarExcel(s){
   if(typeof XLSX==='undefined'){ toast('Exportação para Excel indisponível neste navegador.','err'); return; }
-  const {cab,sipoc,compl}=mpLinhasExcel(r,ent), wb=XLSX.utils.book_new();
+  const p=mpProc(s.processoId)||{}, x=s.sipoc||mpSipocVazio(), comp=s.comp||{};
+  const wb=XLSX.utils.book_new();
+  const cab=[['MAPA DE PROCESSO — SIPOC'],[],['Unidade de Negócio',mpSetorNome(p.setorId)],['Processo',`${p.codigo} — ${p.nome}`],['Subprocesso',`${s.codigo} — ${s.nome}`],
+    ['Responsável',mpNomeU(s.responsavelId||p.responsavelId)],['Versão',pad2(s.versao)],['Status',s.status],['Objetivo',s.objetivo||p.objetivo||''],['Exportado em',fmtDT(nowISO())]];
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cab),'Mapa');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sipoc),'SIPOC');
-  if(compl) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(compl),'Complementares');
-  XLSX.writeFile(wb,`mapa-processo-${String(r.codigo||'sipoc').replace(/[^\w.-]+/g,'_')}-v${pad2(r.versao)}.xlsx`);
-  MapaAPI.registrarExportacao(ent,r,'Excel').catch(()=>{});
+  const max=Math.max(0,...MP_CAT.map(c=>(x[c.k]||[]).length)), linhas=[MP_CAT.map(c=>c.t)];
+  for(let i=0;i<max;i++) linhas.push(MP_CAT.map(c=>{ const it=(x[c.k]||[])[i]; return it?(c.k==='etapas'?it.ordem+'. ':'')+it.nome+(it.tipo?` (${it.tipo})`:''):''; }));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(linhas),'SIPOC');
+  const det=[['Categoria','Ordem','Item','Tipo','Descrição','Origem','Destino','Responsável','Observações']];
+  MP_CAT.forEach(c=>(x[c.k]||[]).forEach(it=>det.push([c.t,it.ordem||'',it.nome,it.tipo||'',it.descricao||'',it.origem||'',it.destino||'',it.responsavelId?mpNomeU(it.responsavelId):'',it.obs||''])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(det),'Detalhes');
+  const nomeDe=(cat,id)=>(x[cat]||[]).find(i=>i.id===id)?.nome||'';
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([MP_VINC.map(v=>v[2]),...(x.vinculos||[]).map(v=>MP_VINC.map(([f,cat])=>nomeDe(cat,v[f])))]),'Rastreabilidade');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Informação','Valor'],...MP_COMP.flatMap(([k,l])=>(comp[k]||[]).map(v=>[l,v])),
+    ...(s.documentosIds||[]).map(docById).filter(Boolean).map(d=>['DOCUMENTOS RELACIONADOS',`${d.codigo} — ${d.titulo}`])]),'Complementares');
+  XLSX.writeFile(wb,`mapa-processo-${String(s.codigo||'sipoc').replace(/[^\w.-]+/g,'_')}-v${pad2(s.versao)}.xlsx`);
+  MapaAPI.registrarExportacao(s,'Excel').catch(()=>{});
 }
 
 /* ====================================================================
